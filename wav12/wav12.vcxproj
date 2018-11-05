@@ -150,6 +150,7 @@
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
     <ClInclude Include="..\wave_reader.h" />
+    <ClInclude Include="..\wave_writer.h" />
     <ClInclude Include="compress.h" />
     <ClInclude Include="wav12stream.h" />
   </ItemGroup>
@@ -158,6 +159,7 @@
     <ClCompile Include="..\tinyxml2.cpp" />
     <ClCompile Include="..\wav12.cpp" />
     <ClCompile Include="..\wave_reader.c" />
+    <ClCompile Include="..\wave_writer.c" />
     <ClCompile Include="compress.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

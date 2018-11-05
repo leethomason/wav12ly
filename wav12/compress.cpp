@@ -3,9 +3,91 @@
 #include <stdio.h>
 #include <assert.h>
 #include <limits.h>
-#include "bits.h"
 
 using namespace wav12;
+
+/*
+    wav12 format=1 writes 16 samples in 24 bytes (75%)
+    wav12 format=2 writes 16 samples in:
+        12 bit header + 4 bits scale + 15 * 8 bits =
+        2 bytes + 15 bytes = 17 bytes (53%)
+ */
+
+bool wav12::compress8(
+    const int16_t* data, int32_t nSamples, 
+    uint8_t** compressed, uint32_t* nCompressed, 
+    float* errorFraction)
+{
+    static const int FRAME = 16;
+    static const int DIV = 16;
+    int scalingError = 0;
+    int16_t samples12[FRAME];
+
+    *compressed = new uint8_t[nSamples*2 + FRAME]; // more than needed
+    uint8_t* target = *compressed;
+    uint8_t* p = *compressed;
+
+    for(int i=0; i<nSamples; i += FRAME) {
+        memset(samples12, 0, sizeof(int16_t) * FRAME);
+        for (int j = 0; j < FRAME; ++j) {
+            samples12[j] = data[i + j] / DIV;
+        }
+        
+        // Scan frame.
+        int maxInc = 0;
+        int maxDec = 0;
+
+        for (int j = 1; j < FRAME; ++j) {
+            int d = samples12[j] - samples12[j - 1];
+            if (d > 0)
+                maxInc = max(maxInc, d);
+            else
+                maxDec = min(maxDec, d);
+        }
+        int scale = 1;
+        // 2^12 = 4096
+        // Jump from -2048 to 2047 is possible at 12 bits. (+4095)
+        // Scale from 1-16, but it multiplies 127*16 = 2032
+        // 
+        int upScale = 1;
+        int downScale = 1;
+        while (maxInc > 127 * upScale)
+            upScale++;
+        while (-maxDec < -128 * downScale)
+            downScale++;
+
+        scale = max(upScale, downScale);
+        if (scale > 16) {
+            delete[] compressed;
+            *compressed = 0;
+            *nCompressed = 0;
+            return false;
+        }
+
+        scalingError += scale - 1;
+
+        // Encode!
+        *p = uint8_t(data[i] >> 8);  // high bits of sample, in full 12 bits.
+        p++;
+        *p = uint8_t((data[i] & 0xff) >> 4) | ((scale - 1) << 4); // low bits
+        p++;
+
+        int current = samples12[0];
+        for (int j = 1; j < FRAME; ++j) {
+            int delta = samples12[j] - current;
+            int deltaToWrite = delta / scale;
+            deltaToWrite = clamp(deltaToWrite, -128, 127);
+            int deltaPrime = deltaToWrite * scale;
+            current += deltaPrime;
+
+            *p++ = (uint8_t)(int8_t(deltaToWrite));
+        }
+    }
+    *errorFraction = float(scalingError * FRAME) / float(nSamples);
+    *nCompressed = int32_t(p - *compressed);
+    return true;
+}
+
 
 void wav12::compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
 {
@@ -47,41 +129,6 @@ void Expander::init(wav12::IStream* stream, uint32_t nSamples, int format)
 }
 
 
-void Expander::fetchSamples(int nSamples)
-{
-    int bytesToFetch = (nSamples * 3 + 1) / 2;
-    int actual = m_stream->fetch(m_buffer, bytesToFetch);
-    assert(actual == bytesToFetch);
-}
-
-
-/*
-void Expander::expand(int16_t* target, uint32_t nSamples)
-{
-    m_pos += nSamples;
-
-    if (m_format == 0) {
-        int actual = m_stream->fetch((uint8_t*) target, nSamples * 2);
-        assert(actual == nSamples * 2);
-    }
-    else {
-        uint32_t i = 0;
-        while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize * 5 / 8);
-            fetchSamples(nSamplesToFetch);
-
-            int16_t* t = target + i;
-            uint8_t* src = m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j += 2) {
-                // Always even samples. Pull out 2.
-                EXPAND_2
-            }
-            i += nSamplesToFetch;
-        }
-    }
-}
-*/
-
 void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
 {
     m_pos += nSamples;
@@ -90,29 +137,44 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
     if (m_format == 0) {
         uint32_t i = 0;
         while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize / 2);
-            fetchSamples(nSamplesToFetch);
+            int nSamplesFetched = min(nSamples - i, m_bufferSize / 2);
+            m_stream->fetch(m_buffer, nSamplesFetched * 2);
 
             int32_t* t = target + i * 2;
             const int16_t* src = (const int16_t*) m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j++) {
+            for (int j = 0; j < nSamplesFetched; j++) {
                 int32_t v = *src  * volume;
                 ++src;
                 *t++ = v;
                 *t++ = v;
             }
-            i += nSamplesToFetch;
+            i += nSamplesFetched;
         }
     }
-    else {
+    else if (m_format == 1) {
         uint32_t i = 0;
         while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize / 2);
-            fetchSamples(nSamplesToFetch);
+            uint32_t samplesRemaning = nSamples - i;
+            uint32_t samplesCanFetch = (m_bufferSize / 3) * 2;
+            uint32_t fetched = 0;
+            if (samplesRemaning <= samplesCanFetch) {
+                // But there can be padding so that bytes % 3 always zero.
+                fetched = (samplesRemaning + 1) & (~1);
+            }
+            else {
+                // Normal case: 
+                //  samplesCanFetch MULT 2 so that
+                //  bytes MULT 3
+                assert(samplesCanFetch % 2 == 0);
+                fetched = samplesCanFetch;
+            }
+            uint32_t bytes = fetched * 3 / 2;
+            assert(bytes % 3 == 0);
+            m_stream->fetch(m_buffer, bytes);
 
             int32_t* t = target + i * 2;
             uint8_t* src = m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j += 2) {
+            for (uint32_t j = 0; j < fetched; j += 2) {
                 uint8_t s0 = *src++;
                 uint8_t s1 = *src++;
                 uint8_t s2 = *src++;
@@ -125,8 +187,57 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
                     *t++ = v1;
                 }
             }
-            i += nSamplesToFetch;
+            i += fetched;
         }
+    }
+    else if (m_format == 2) {
+        uint32_t i = 0;
+        static const int FRAME_SAMPLES = 16;
+        static const int FRAME_BYTES = 17;
+        // Align sample read to frame.
+        const uint32_t nSamplesPadded = ((nSamples + FRAME_SAMPLES - 1) / FRAME_SAMPLES) * FRAME_SAMPLES;
+        const uint32_t bufferCap = (m_bufferSize / FRAME_BYTES) * FRAME_SAMPLES;
+
+        while (i < nSamplesPadded) {
+            int nSamplesFetched = min(nSamplesPadded - i, bufferCap);
+            m_stream->fetch(m_buffer, nSamplesFetched * FRAME_BYTES / FRAME_SAMPLES);
+
+            int32_t* t = target + i * 2;
+            const uint8_t* src = m_buffer;
+
+            assert(nSamplesFetched % FRAME_SAMPLES == 0);
+            const int nFrames = nSamplesFetched / FRAME_SAMPLES;
+
+            for (int f = 0; f < nFrames; ++f) {
+                assert(src < m_buffer + m_bufferSize);
+                int32_t base = int8_t(*src) << 8;
+                src++;
+                base |= (*src & 0xf) << 4;
+                int scale = (*src >> 4) + 1;
+                assert(src < m_buffer + m_bufferSize);
+                src++;
+
+                if (scale > 1)
+                    int debug = 1;
+
+                assert(t < end);
+                *t++ = base * volume;
+                *t++ = base * volume;
+
+                for (int j = 1; j < FRAME_SAMPLES; ++j) {
+                    base += scale * int8_t(*src) * 16;
+                    src++;
+                    assert(t < end);
+                    *t++ = base * volume;
+                    *t++ = base * volume;
+                    if (t == end) break;
+                }
+            }
+            i += nSamplesFetched;
+        }
+    }
+    else {
+        assert(false); // bad format
     }
 }
 

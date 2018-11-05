@@ -126,7 +126,9 @@ void MemImageUtil::dumpConsole()
                     
                     wav12::Expander expander(subBuffer, SUB_BUFFER_SIZE);
                     expander.init(&memStream, header->nSamples, header->format);
-                    int errorRange = header->format == 0 ? 1 : (1 << 4);
+                    int errorRange = 1;
+                    if (header->format == 1) errorRange = 16;
+                    else if (header->format == 2) errorRange = 200;  // GUESS
 
                     static const int BUFSIZE = 256;
                     int32_t buf[BUFSIZE];
