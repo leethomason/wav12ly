@@ -30,6 +30,9 @@
     <ClInclude Include="..\memimage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\wave_writer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\wave_reader.c">
@@ -45,6 +48,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\memimage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\wave_writer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

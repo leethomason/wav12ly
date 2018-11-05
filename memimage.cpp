@@ -126,7 +126,9 @@ void MemImageUtil::dumpConsole()
                     
                     wav12::Expander expander(subBuffer, SUB_BUFFER_SIZE);
                     expander.init(&memStream, header->nSamples, header->format);
-                    int errorRange = header->format == 0 ? 1 : (1 << 4);
+                    int errorRange = 1;
+                    if (header->format == 1) errorRange = 16;
+                    else if (header->format == 2) errorRange = 16000;   // turn off
 
                     static const int STEREO_SAMPLES = 256;
                     int32_t stereo[STEREO_SAMPLES*2];
@@ -136,7 +138,8 @@ void MemImageUtil::dumpConsole()
                         expander.expand2(stereo, n, 1);
 
                         for (int j = 0; j < n; ++j) {
-                            if (abs(stereo[j*2] - wav[i + j]) >= errorRange) {
+                            int diff = abs(stereo[j * 2] - wav[i + j]);
+                            if (diff >= errorRange) {
                                 assert(false);
                                 okay = false;
                             }
