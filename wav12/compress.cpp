@@ -47,41 +47,6 @@ void Expander::init(wav12::IStream* stream, uint32_t nSamples, int format)
 }
 
 
-void Expander::fetchSamples(int nSamples)
-{
-    int bytesToFetch = (nSamples * 3 + 1) / 2;
-    int actual = m_stream->fetch(m_buffer, bytesToFetch);
-    assert(actual == bytesToFetch);
-}
-
-
-/*
-void Expander::expand(int16_t* target, uint32_t nSamples)
-{
-    m_pos += nSamples;
-
-    if (m_format == 0) {
-        int actual = m_stream->fetch((uint8_t*) target, nSamples * 2);
-        assert(actual == nSamples * 2);
-    }
-    else {
-        uint32_t i = 0;
-        while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize * 5 / 8);
-            fetchSamples(nSamplesToFetch);
-
-            int16_t* t = target + i;
-            uint8_t* src = m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j += 2) {
-                // Always even samples. Pull out 2.
-                EXPAND_2
-            }
-            i += nSamplesToFetch;
-        }
-    }
-}
-*/
-
 void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
 {
     m_pos += nSamples;
@@ -90,29 +55,44 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
     if (m_format == 0) {
         uint32_t i = 0;
         while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize / 2);
-            fetchSamples(nSamplesToFetch);
+            int nSamplesFetched = min(nSamples - i, m_bufferSize / 2);
+            m_stream->fetch(m_buffer, nSamplesFetched * 2);
 
             int32_t* t = target + i * 2;
             const int16_t* src = (const int16_t*) m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j++) {
+            for (int j = 0; j < nSamplesFetched; j++) {
                 int32_t v = *src  * volume;
                 ++src;
                 *t++ = v;
                 *t++ = v;
             }
-            i += nSamplesToFetch;
+            i += nSamplesFetched;
         }
     }
     else {
         uint32_t i = 0;
         while (i < nSamples) {
-            int nSamplesToFetch = min(nSamples - i, m_bufferSize / 2);
-            fetchSamples(nSamplesToFetch);
+            uint32_t samplesRemaning = nSamples - i;
+            uint32_t samplesCanFetch = (m_bufferSize / 3) * 2;
+            uint32_t fetched = 0;
+            if (samplesRemaning <= samplesCanFetch) {
+                // But there can be padding so that bytes % 3 always zero.
+                fetched = (samplesRemaning + 1) & (~1);
+            }
+            else {
+                // Normal case: 
+                //  samplesCanFetch MULT 2 so that
+                //  bytes MULT 3
+                assert(samplesCanFetch % 2 == 0);
+                fetched = samplesCanFetch;
+            }
+            uint32_t bytes = fetched * 3 / 2;
+            assert(bytes % 3 == 0);
+            m_stream->fetch(m_buffer, bytes);
 
             int32_t* t = target + i * 2;
             uint8_t* src = m_buffer;
-            for (int j = 0; j < nSamplesToFetch; j += 2) {
+            for (uint32_t j = 0; j < fetched; j += 2) {
                 uint8_t s0 = *src++;
                 uint8_t s1 = *src++;
                 uint8_t s2 = *src++;
@@ -125,7 +105,7 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
                     *t++ = v1;
                 }
             }
-            i += nSamplesToFetch;
+            i += fetched;
         }
     }
 }

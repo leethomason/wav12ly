@@ -31,6 +31,12 @@ namespace wav12 {
             m_size = size;
             m_pos = 0;
         }
+
+        void init(const uint8_t* data, uint32_t size) {
+            m_data = data;
+            m_size = size;
+            m_pos = 0;
+        }
         
         virtual uint32_t fetch(uint8_t* buffer, uint32_t nBytes);
 
@@ -62,7 +68,7 @@ namespace wav12 {
         uint32_t pos() const     { return m_pos; }
 
     private:
-        void fetchSamples(int n);
+        uint32_t fetchSamples(uint32_t n);
 
         IStream* m_stream;
         uint32_t m_nSamples;

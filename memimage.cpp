@@ -122,21 +122,21 @@ void MemImageUtil::dumpConsole()
                     
                     wav12::MemStream memStream(
                         dataVec + fileUnit.offset + sizeof(wav12::Wav12Header),
-                        fileUnit.size);
+                        header->lenInBytes);
                     
                     wav12::Expander expander(subBuffer, SUB_BUFFER_SIZE);
                     expander.init(&memStream, header->nSamples, header->format);
                     int errorRange = header->format == 0 ? 1 : (1 << 4);
 
-                    static const int BUFSIZE = 256;
-                    int32_t buf[BUFSIZE];
+                    static const int STEREO_SAMPLES = 256;
+                    int32_t stereo[STEREO_SAMPLES*2];
 
-                    for (int i = 0; i < nSamples; i += BUFSIZE) {
-                        int n = wav12::min(BUFSIZE, nSamples - i);
-                        expander.expand2(buf, n, 1);
+                    for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
+                        int n = wav12::min(STEREO_SAMPLES, nSamples - i);
+                        expander.expand2(stereo, n, 1);
 
                         for (int j = 0; j < n; ++j) {
-                            if (abs(buf[j] - wav[i + j]) >= errorRange) {
+                            if (abs(stereo[j*2] - wav[i + j]) >= errorRange) {
                                 assert(false);
                                 okay = false;
                             }
@@ -146,12 +146,12 @@ void MemImageUtil::dumpConsole()
                     delete[] wav;
                 }
 
-                printf("   %8s at %8d size=%6d (%3dk) comp=%d ratio=%4.2f valid=%s\n", 
+                printf("   %8s at %8d size=%6d (%3dk) comp=%d ratio=%4.2f %s\n", 
                     fileName, 
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     header->format,
                     float(header->lenInBytes) / (float)(header->nSamples*2),
-                    okay ? "true" : "ERROR" );
+                    okay ? "ok" : "ERROR" );
 
                 totalUncompressed += header->nSamples * 2;
                 totalSize += header->lenInBytes;
