@@ -6,6 +6,17 @@
 
 using namespace wav12;
 
+template<class T>
+T wav12Min(T a, T b) { return (a < b) ? a : b; }
+template<class T>
+T wav12Max(T a, T b) { return (a > b) ? a : b; }
+template<class T>
+T wav12Clamp(T x, T a, T b) {
+	if (x < a) return a;
+	if (x > b) return b;
+	return x;
+}
+
 /*
     wav12 format=1 writes 16 samples in 24 bytes (75%)
     wav12 format=2 writes 16 samples in:
@@ -24,7 +35,7 @@ bool wav12::compress8(
     int16_t samples12[FRAME];
 
     *compressed = new uint8_t[nSamples*2 + FRAME]; // more than needed
-    uint8_t* target = *compressed;
+    //uint8_t* target = *compressed;
     uint8_t* p = *compressed;
 
     for(int i=0; i<nSamples; i += FRAME) {
@@ -44,9 +55,9 @@ bool wav12::compress8(
         for (int j = 1; j < FRAME; ++j) {
             int d = samples12[j] - samples12[j - 1];
             if (d > 0)
-                maxInc = max(maxInc, d);
+                maxInc = wav12Max(maxInc, d);
             else
-                maxDec = min(maxDec, d);
+                maxDec = wav12Min(maxDec, d);
         }
         int scale = 1;
         // 2^12 = 4096
@@ -60,7 +71,7 @@ bool wav12::compress8(
         while (maxDec < -128 * downScale)
             downScale++;
 
-        scale = max(upScale, downScale);
+        scale = wav12Max(upScale, downScale);
         if (scale > 16) {
             delete[] *compressed;
             *compressed = 0;
@@ -80,7 +91,7 @@ bool wav12::compress8(
         for (int j = 1; j < FRAME; ++j) {
             int delta = samples12[j] - current;
             int deltaToWrite = delta / scale;
-            deltaToWrite = clamp(deltaToWrite, -128, 127);
+            deltaToWrite = wav12Clamp(deltaToWrite, -128, 127);
             int deltaPrime = deltaToWrite * scale;
             current += deltaPrime;
             assert(abs(current - samples12[j]) < 256 * scale);
@@ -142,7 +153,7 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
     if (m_format == 0) {
         uint32_t i = 0;
         while (i < nSamples) {
-            int nSamplesFetched = min(nSamples - i, m_bufferSize / 2);
+            int nSamplesFetched = wav12Min(nSamples - i, m_bufferSize / 2);
             m_stream->fetch(m_buffer, nSamplesFetched * 2);
 
             int32_t* t = target + i * 2;
@@ -204,7 +215,7 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
         const uint32_t bufferCap = (m_bufferSize / FRAME_BYTES) * FRAME_SAMPLES;
 
         while (i < nSamplesPadded) {
-            int nSamplesFetched = min(nSamplesPadded - i, bufferCap);
+            int nSamplesFetched = wav12Min(nSamplesPadded - i, bufferCap);
             m_stream->fetch(m_buffer, nSamplesFetched * FRAME_BYTES / FRAME_SAMPLES);
 
             int32_t* t = target + i * 2;
@@ -245,7 +256,7 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
 
 uint32_t MemStream::fetch(uint8_t* buffer, uint32_t nBytes)
 {
-    uint32_t n = min(nBytes, m_size - m_pos);
+    uint32_t n = wav12Min(nBytes, m_size - m_pos);
     memcpy(buffer, m_data + m_pos, n);
     m_pos += n;
     return n;
