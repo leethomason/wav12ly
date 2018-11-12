@@ -17,6 +17,13 @@ T wav12Clamp(T x, T a, T b) {
 	return x;
 }
 
+static const int scaleTable[16] = 
+{
+    1, 2, 3, 4, 5, 6, 7, 8,
+    10, 12, 14, 16, 20, 24, 28,
+    33  // 4096 / 127 greatest possible jump
+};
+
 /*
     wav12 format=1 writes 16 samples in 24 bytes (75%)
     wav12 format=2 writes 16 samples in:
@@ -35,11 +42,9 @@ bool wav12::compress8(
     int16_t samples12[FRAME];
 
     *compressed = new uint8_t[nSamples*2 + FRAME]; // more than needed
-    //uint8_t* target = *compressed;
     uint8_t* p = *compressed;
 
     for(int i=0; i<nSamples; i += FRAME) {
-        //memset(samples12, 0, sizeof(int16_t) * FRAME);
         for (int j = 0; j < FRAME && (i + j) < nSamples; ++j) {
             samples12[j] = data[i + j] / DIV;
         }
@@ -51,6 +56,9 @@ bool wav12::compress8(
         // Scan frame.
         int maxInc = 0;
         int maxDec = 0;
+
+        if (i > 1000)
+            int debug = 1;
 
         for (int j = 1; j < FRAME; ++j) {
             int d = samples12[j] - samples12[j - 1];
@@ -71,20 +79,20 @@ bool wav12::compress8(
         while (maxDec < -128 * downScale)
             downScale++;
 
-        scale = wav12Max(upScale, downScale);
-        if (scale > 16) {
-            delete[] *compressed;
-            *compressed = 0;
-            *nCompressed = 0;
-            return false;
+        int scaleInc = wav12Max(upScale, downScale);
+        int scaleSlot = 0;
+        while(scaleTable[scaleSlot] < scaleInc) {
+            scaleSlot++;
+            assert(scaleSlot < 16);
+            scale = scaleTable[scaleSlot];
         }
 
         scalingError += scale - 1;
-
+        
         // Encode!
         *p = uint8_t(data[i] >> 8);  // high bits of sample, in full 12 bits.
         p++;
-        *p = uint8_t((data[i] & 0xff) >> 4) | ((scale - 1) << 4); // low bits
+        *p = uint8_t((data[i] & 0xff) >> 4) | (scaleSlot << 4); // low bits
         p++;
 
         int current = samples12[0];
@@ -229,21 +237,25 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
                 int32_t base = int8_t(*src) << 8;
                 src++;
                 base |= (*src & 0xf) << 4;
-                int scale = (*src >> 4) + 1;
+                int scaleSlot = (*src >> 4);
+                int scale = scaleTable[scaleSlot];
                 assert(src < m_buffer + m_bufferSize);
                 src++;
 
                 assert(t < end);
                 *t++ = base * volume;
+                assert(t < end);
                 *t++ = base * volume;
 
-                for (int j = 1; j < FRAME_SAMPLES; ++j) {
+                for (int j = 1; j < FRAME_SAMPLES && t < end; ++j) {
                     base += scale * int8_t(*src) * 16;
                     src++;
                     assert(t < end);
                     *t++ = base * volume;
+                    assert(t < end);
                     *t++ = base * volume;
-                    if (t == end) break;
+                    if (t == end) 
+                        break;
                 }
             }
             i += nSamplesFetched;

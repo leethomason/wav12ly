@@ -8,7 +8,7 @@ extern "C" {
 #include "./wav12/compress.h"
 
 template<class T>
-T wav12Min(T a, T b) { return (a < b) ? a : b; }
+T miMin(T a, T b) { return (a < b) ? a : b; }
 
 MemImageUtil::MemImageUtil()
 {
@@ -137,7 +137,7 @@ void MemImageUtil::dumpConsole()
                     int32_t stereo[STEREO_SAMPLES*2];
 
                     for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
-                        int n = wav12Min(STEREO_SAMPLES, nSamples - i);
+                        int n = miMin(STEREO_SAMPLES, nSamples - i);
                         expander.expand2(stereo, n, 1);
 
                         for (int j = 0; j < n; ++j) {
