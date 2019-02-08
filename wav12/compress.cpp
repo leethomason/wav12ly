@@ -17,12 +17,8 @@ T wav12Clamp(T x, T a, T b) {
 	return x;
 }
 
-static const int scaleTable[16] = 
-{
-    1, 2, 3, 4, 5, 6, 7, 8,
-    10, 12, 14, 16, 20, 24, 28,
-    33  // 4096 / 127 greatest possible jump
-};
+static const int FRAME_SAMPLES = 16;
+static const int FRAME_BYTES = 17;
 
 /*
     wav12 format=1 writes 16 samples in 24 bytes (75%)
@@ -42,9 +38,11 @@ bool wav12::compress8(
     int16_t samples12[FRAME];
 
     *compressed = new uint8_t[nSamples*2 + FRAME]; // more than needed
+    //uint8_t* target = *compressed;
     uint8_t* p = *compressed;
 
     for(int i=0; i<nSamples; i += FRAME) {
+        //memset(samples12, 0, sizeof(int16_t) * FRAME);
         for (int j = 0; j < FRAME && (i + j) < nSamples; ++j) {
             samples12[j] = data[i + j] / DIV;
         }
@@ -56,9 +54,6 @@ bool wav12::compress8(
         // Scan frame.
         int maxInc = 0;
         int maxDec = 0;
-
-        if (i > 1000)
-            int debug = 1;
 
         for (int j = 1; j < FRAME; ++j) {
             int d = samples12[j] - samples12[j - 1];
@@ -79,20 +74,20 @@ bool wav12::compress8(
         while (maxDec < -128 * downScale)
             downScale++;
 
-        int scaleInc = wav12Max(upScale, downScale);
-        int scaleSlot = 0;
-        while(scaleTable[scaleSlot] < scaleInc) {
-            scaleSlot++;
-            assert(scaleSlot < 16);
-            scale = scaleTable[scaleSlot];
+        scale = wav12Max(upScale, downScale);
+        if (scale > 16) {
+            delete[] *compressed;
+            *compressed = 0;
+            *nCompressed = 0;
+            return false;
         }
 
         scalingError += scale - 1;
-        
+
         // Encode!
         *p = uint8_t(data[i] >> 8);  // high bits of sample, in full 12 bits.
         p++;
-        *p = uint8_t((data[i] & 0xff) >> 4) | (scaleSlot << 4); // low bits
+        *p = uint8_t((data[i] & 0xff) >> 4) | ((scale - 1) << 4); // low bits
         p++;
 
         int current = samples12[0];
@@ -153,7 +148,89 @@ void Expander::init(wav12::IStream* stream, uint32_t nSamples, int format)
 }
 
 
-void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
+int32_t* Expander::expandComp0(int32_t* t, const int16_t* src, uint32_t n, int32_t volume, bool add)
+{
+    if (add) {
+        for (uint32_t j = 0; j < n; j++) {
+            const int32_t v = *src  * volume;
+            ++src;
+            *t++ += v;
+            *t++ += v;
+        }
+    }
+    else {
+        for (uint32_t j = 0; j < n; j++) {
+            const int32_t v = *src  * volume;
+            ++src;
+            *t++ = v;
+            *t++ = v;
+        }
+    }
+    return t;
+}
+
+
+int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t n, const int32_t* end, int32_t volume, bool add)
+{
+    for (uint32_t j = 0; j < n; j += 2) {
+        uint8_t s0 = *src++;
+        uint8_t s1 = *src++;
+        uint8_t s2 = *src++;
+        int32_t v0 = int16_t((uint16_t(s0) << 8) | (uint16_t(s1 & 0xf0))) * volume;
+        int32_t v1 = int16_t((uint16_t(s1 & 0x0f) << 12) | (uint16_t(s2) << 4)) * volume;
+        if (add) {
+            *t++ += v0;
+            *t++ += v0;
+            if (t < end) {
+                *t++ += v1;
+                *t++ += v1;
+            }
+        }
+        else {
+            *t++ = v0;
+            *t++ = v0;
+            if (t < end) {
+                *t++ = v1;
+                *t++ = v1;
+            }
+        }
+    }
+    return t;
+}
+
+
+int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* end, int32_t volume, bool add)
+{
+    int32_t base = int8_t(*src) << 8;
+    src++;
+    base |= (*src & 0xf) << 4;
+    int scale = (*src >> 4) + 1;
+    assert(src < m_buffer + m_bufferSize);
+    src++;
+
+    assert(t < end);
+    *t++ = base * volume;
+    *t++ = base * volume;
+
+    for (int j = 1; j < FRAME_SAMPLES; ++j) {
+        base += scale * int8_t(*src) * 16;
+        src++;
+        assert(t < end);
+        if (add) {
+            *t++ += base * volume;
+            *t++ += base * volume;
+        }
+        else {
+            *t++ = base * volume;
+            *t++ = base * volume;
+        }
+        if (t == end) break;
+    }
+    return t;
+}
+
+
+void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
 {
     m_pos += nSamples;
     const int32_t* end = target + nSamples * 2;
@@ -163,15 +240,9 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
         while (i < nSamples) {
             int nSamplesFetched = wav12Min(nSamples - i, m_bufferSize / 2);
             m_stream->fetch(m_buffer, nSamplesFetched * 2);
-
             int32_t* t = target + i * 2;
             const int16_t* src = (const int16_t*) m_buffer;
-            for (int j = 0; j < nSamplesFetched; j++) {
-                int32_t v = *src  * volume;
-                ++src;
-                *t++ = v;
-                *t++ = v;
-            }
+            t = expandComp0(t, src, nSamplesFetched, volume, add);
             i += nSamplesFetched;
         }
     }
@@ -198,26 +269,12 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
 
             int32_t* t = target + i * 2;
             uint8_t* src = m_buffer;
-            for (uint32_t j = 0; j < fetched; j += 2) {
-                uint8_t s0 = *src++;
-                uint8_t s1 = *src++;
-                uint8_t s2 = *src++;
-                int32_t v0 = int16_t((uint16_t(s0) << 8) | (uint16_t(s1 & 0xf0))) * volume;
-                int32_t v1 = int16_t((uint16_t(s1 & 0x0f) << 12) | (uint16_t(s2) << 4)) * volume;
-                *t++ = v0;
-                *t++ = v0;
-                if (t < end) {
-                    *t++ = v1;
-                    *t++ = v1;
-                }
-            }
+            t = expandComp1(t, src, fetched, end, volume, add);
             i += fetched;
         }
     }
     else if (m_format == 2) {
         uint32_t i = 0;
-        static const int FRAME_SAMPLES = 16;
-        static const int FRAME_BYTES = 17;
         // Align sample read to frame.
         const uint32_t nSamplesPadded = ((nSamples + FRAME_SAMPLES - 1) / FRAME_SAMPLES) * FRAME_SAMPLES;
         const uint32_t bufferCap = (m_bufferSize / FRAME_BYTES) * FRAME_SAMPLES;
@@ -234,29 +291,8 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume)
 
             for (int f = 0; f < nFrames; ++f) {
                 assert(src < m_buffer + m_bufferSize);
-                int32_t base = int8_t(*src) << 8;
-                src++;
-                base |= (*src & 0xf) << 4;
-                int scaleSlot = (*src >> 4);
-                int scale = scaleTable[scaleSlot];
-                assert(src < m_buffer + m_bufferSize);
-                src++;
-
-                assert(t < end);
-                *t++ = base * volume;
-                assert(t < end);
-                *t++ = base * volume;
-
-                for (int j = 1; j < FRAME_SAMPLES && t < end; ++j) {
-                    base += scale * int8_t(*src) * 16;
-                    src++;
-                    assert(t < end);
-                    *t++ = base * volume;
-                    assert(t < end);
-                    *t++ = base * volume;
-                    if (t == end) 
-                        break;
-                }
+                t = expandComp2(t, src, end, volume, add);
+                src += FRAME_BYTES;
             }
             i += nSamplesFetched;
         }

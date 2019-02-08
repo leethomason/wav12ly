@@ -138,7 +138,7 @@ void MemImageUtil::dumpConsole()
 
                     for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
                         int n = miMin(STEREO_SAMPLES, nSamples - i);
-                        expander.expand2(stereo, n, 1);
+                        expander.expand2(stereo, n, 1, false);
 
                         for (int j = 0; j < n; ++j) {
                             int diff = abs(stereo[j * 2] - wav[i + j]);

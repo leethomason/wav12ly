@@ -56,8 +56,10 @@ namespace wav12 {
 
         // Does a stereo expansion (both channels the same, of course)
         // to 32 bits. nTarget is the samples per channel.
-        // Volume max is 65536
-        void expand2(int32_t* target, uint32_t nTarget, int32_t volume);
+        // Volume max is 65536.
+        // If 'add' is true, will add to the target buffer (for mixing), else
+        // will just write & replace.
+        void expand2(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
 
         bool done() const { return m_nSamples == m_pos; }
         
@@ -65,6 +67,11 @@ namespace wav12 {
         uint32_t pos() const     { return m_pos; }
 
     private:
+        int32_t* expandComp0(int32_t* target, const int16_t* src, uint32_t n, int32_t volume, bool add);
+        int32_t* expandComp1(int32_t* target, const uint8_t* src, uint32_t n, const int32_t* end, int32_t volume, bool add);
+        int32_t* expandComp2(int32_t* target, const uint8_t* src, const int32_t* end, int32_t volume, bool add);
+
+
         uint32_t fetchSamples(uint32_t n);
 
         IStream* m_stream;
