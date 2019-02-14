@@ -6,17 +6,6 @@
 
 using namespace wav12;
 
-template<class T>
-T wav12Min(T a, T b) { return (a < b) ? a : b; }
-template<class T>
-T wav12Max(T a, T b) { return (a > b) ? a : b; }
-template<class T>
-T wav12Clamp(T x, T a, T b) {
-	if (x < a) return a;
-	if (x > b) return b;
-	return x;
-}
-
 static const int FRAME_SAMPLES = 16;
 static const int FRAME_BYTES = 17;
 
@@ -38,11 +27,9 @@ bool wav12::compress8(
     int16_t samples12[FRAME];
 
     *compressed = new uint8_t[nSamples*2 + FRAME]; // more than needed
-    //uint8_t* target = *compressed;
     uint8_t* p = *compressed;
 
     for(int i=0; i<nSamples; i += FRAME) {
-        //memset(samples12, 0, sizeof(int16_t) * FRAME);
         for (int j = 0; j < FRAME && (i + j) < nSamples; ++j) {
             samples12[j] = data[i + j] / DIV;
         }
@@ -96,6 +83,7 @@ bool wav12::compress8(
             int deltaToWrite = delta / scale;
             deltaToWrite = wav12Clamp(deltaToWrite, -128, 127);
             int deltaPrime = deltaToWrite * scale;
+            assert(scale > 1 || deltaToWrite == delta);
             current += deltaPrime;
             assert(abs(current - samples12[j]) < 256 * scale);
 

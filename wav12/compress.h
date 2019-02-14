@@ -8,6 +8,18 @@
 #include <string.h>
 
 namespace wav12 {
+
+    template<class T>
+    T wav12Min(T a, T b) { return (a < b) ? a : b; }
+    template<class T>
+    T wav12Max(T a, T b) { return (a > b) ? a : b; }
+    template<class T>
+    T wav12Clamp(T x, T a, T b) {
+        if (x < a) return a;
+        if (x > b) return b;
+        return x;
+    }
+
     struct Wav12Header
     {
         char id[4];             // 'wv12'
