@@ -210,22 +210,36 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
     src++;
 
     assert(t < end);
-    *t++ = base * volume;
-    *t++ = base * volume;
+    int n = wav12Min(FRAME_SAMPLES, int(end - t) / 2);
+        
+    if (add) {
+        *t++ += base * volume;
+        *t++ += base * volume;
+    }
+    else {
+        *t++ = base * volume;
+        *t++ = base * volume;
+    }
 
-    for (int j = 1; j < FRAME_SAMPLES; ++j) {
-        base += scale * int8_t(*src) * 16;
-        src++;
-        assert(t < end);
-        if (add) {
-            *t++ += base * volume;
-            *t++ += base * volume;
+    if (add) {
+        for (int j = 1; j < n; ++j) {
+            base += scale * int8_t(*src) * 16;
+            src++;
+            assert(t < end);
+            int32_t v = base * volume;
+            *t++ += v;
+            *t++ += v;
         }
-        else {
-            *t++ = base * volume;
-            *t++ = base * volume;
+    }
+    else {
+        for (int j = 1; j < n; ++j) {
+            base += scale * int8_t(*src) * 16;
+            src++;
+            assert(t < end);
+            int32_t v = base * volume;
+            *t++ = v;
+            *t++ = v;
         }
-        if (t == end) break;
     }
     return t;
 }
