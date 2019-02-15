@@ -170,10 +170,11 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, cons
 {
     uint32_t n = wav12Min(_n, uint32_t(end - t) / 2);
     int32_t v0 = 0, v1 = 0;
+    // The n-1 does nothing if even; trims off the last step if odd.
+    uint32_t nM1 = n - 1;
 
     if (add) {
-        // The n-1 does nothing if even; trims off the last step if odd.
-        for (uint32_t j = 0; j < n-1; j += 2) {
+        for (uint32_t j = 0; j < nM1; j += 2) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ += v0;
@@ -189,7 +190,7 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, cons
         }
     }
     else {
-        for (uint32_t j = 0; j < n-1; j += 2) {
+        for (uint32_t j = 0; j < nM1; j += 2) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ = v0;
