@@ -158,9 +158,13 @@ int32_t* Expander::expandComp0(int32_t* t, const int16_t* src, uint32_t n, int32
 }
 
 
-int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t n, const int32_t* end, int32_t volume, bool add)
+int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, const int32_t* end, int32_t volume, bool add)
 {
-    for (uint32_t j = 0; j < n; j += 2) {
+    uint32_t n = wav12Min(_n, uint32_t(end - t) / 2);
+    bool isOdd = (n & 1) != 0;
+    n = n & (~1);
+
+    for (uint32_t j=0; j < n; j += 2) {
         uint8_t s0 = *src++;
         uint8_t s1 = *src++;
         uint8_t s2 = *src++;
@@ -169,18 +173,27 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t n, const
         if (add) {
             *t++ += v0;
             *t++ += v0;
-            if (t < end) {
-                *t++ += v1;
-                *t++ += v1;
-            }
+            *t++ += v1;
+            *t++ += v1;
         }
         else {
             *t++ = v0;
             *t++ = v0;
-            if (t < end) {
-                *t++ = v1;
-                *t++ = v1;
-            }
+            *t++ = v1;
+            *t++ = v1;
+        }
+    }
+    if (isOdd) {
+        uint8_t s0 = *src++;
+        uint8_t s1 = *src++;
+        int32_t v0 = int16_t((uint16_t(s0) << 8) | (uint16_t(s1 & 0xf0))) * volume;
+        if (add) {
+            *t++ += v0;
+            *t++ += v0;
+        }
+        else {
+            *t++ = v0;
+            *t++ = v0;
         }
     }
     return t;
