@@ -158,40 +158,47 @@ int32_t* Expander::expandComp0(int32_t* t, const int16_t* src, uint32_t n, int32
 }
 
 
+inline void unpackComp1(const uint8_t* src, int32_t& v0, int32_t& v1, int32_t volume)
+{
+    v0 = int16_t((uint16_t(src[0]) << 8) | (uint16_t(src[1] & 0xf0))) * volume;
+    v1 = int16_t((uint16_t(src[1] & 0x0f) << 12) | (uint16_t(src[2]) << 4)) * volume;
+    
+}
+
+
 int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, const int32_t* end, int32_t volume, bool add)
 {
     uint32_t n = wav12Min(_n, uint32_t(end - t) / 2);
-    bool isOdd = (n & 1) != 0;
-    n = n & (~1);
+    int32_t v0 = 0, v1 = 0;
 
-    for (uint32_t j=0; j < n; j += 2) {
-        uint8_t s0 = *src++;
-        uint8_t s1 = *src++;
-        uint8_t s2 = *src++;
-        int32_t v0 = int16_t((uint16_t(s0) << 8) | (uint16_t(s1 & 0xf0))) * volume;
-        int32_t v1 = int16_t((uint16_t(s1 & 0x0f) << 12) | (uint16_t(s2) << 4)) * volume;
-        if (add) {
+    if (add) {
+        // The n-1 does nothing if even; trims off the last step if odd.
+        for (uint32_t j = 0; j < n-1; j += 2) {
+            unpackComp1(src, v0, v1, volume);
+            src += 3;
             *t++ += v0;
             *t++ += v0;
             *t++ += v1;
             *t++ += v1;
         }
-        else {
-            *t++ = v0;
-            *t++ = v0;
-            *t++ = v1;
-            *t++ = v1;
+        // Picks up the odd case.
+        if (n & 1) {
+            unpackComp1(src, v0, v1, volume);
+            *t++ += v0;
+            *t++ += v0;
         }
     }
-    if (isOdd) {
-        uint8_t s0 = *src++;
-        uint8_t s1 = *src++;
-        int32_t v0 = int16_t((uint16_t(s0) << 8) | (uint16_t(s1 & 0xf0))) * volume;
-        if (add) {
-            *t++ += v0;
-            *t++ += v0;
+    else {
+        for (uint32_t j = 0; j < n-1; j += 2) {
+            unpackComp1(src, v0, v1, volume);
+            src += 3;
+            *t++ = v0;
+            *t++ = v0;
+            *t++ = v1;
+            *t++ = v1;
         }
-        else {
+        if (n & 1) {
+            unpackComp1(src, v0, v1, volume);
             *t++ = v0;
             *t++ = v0;
         }
