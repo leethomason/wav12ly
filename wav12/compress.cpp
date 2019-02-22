@@ -171,10 +171,10 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, cons
     uint32_t n = wav12Min(_n, uint32_t(end - t) / 2);
     int32_t v0 = 0, v1 = 0;
     // The n-1 does nothing if even; trims off the last step if odd.
-    uint32_t nM1 = n - 1;
+    const int32_t* endM1 = t + (n - 1) * 2;
 
     if (add) {
-        for (uint32_t j = 0; j < nM1; j += 2) {
+        while(t < endM1) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ += v0;
@@ -184,13 +184,14 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, cons
         }
         // Picks up the odd case.
         if (n & 1) {
+            assert(t < end);
             unpackComp1(src, v0, v1, volume);
             *t++ += v0;
             *t++ += v0;
         }
     }
     else {
-        for (uint32_t j = 0; j < nM1; j += 2) {
+        while (t < endM1) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ = v0;
@@ -219,18 +220,13 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
 
     assert(t < end);
     int n = wav12Min(FRAME_SAMPLES, int(end - t) / 2);
+    const int32_t* nEnd = t + n * 2;
+    int32_t initV = base * volume;
         
     if (add) {
-        *t++ += base * volume;
-        *t++ += base * volume;
-    }
-    else {
-        *t++ = base * volume;
-        *t++ = base * volume;
-    }
-
-    if (add) {
-        for (int j = 1; j < n; ++j) {
+        *t++ += initV;
+        *t++ += initV;
+        while(t < nEnd) {
             base += scale * int8_t(*src) * 16;
             src++;
             assert(t < end);
@@ -240,7 +236,9 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
         }
     }
     else {
-        for (int j = 1; j < n; ++j) {
+        *t++ = initV;
+        *t++ = initV;
+        while (t < nEnd) {
             base += scale * int8_t(*src) * 16;
             src++;
             assert(t < end);
