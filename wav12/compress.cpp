@@ -180,31 +180,31 @@ int32_t* Expander::expandComp1(int32_t* t, const uint8_t* src, uint32_t _n, cons
     // The n-1 does nothing if even; trims off the last step if odd.
     uint32_t nM1 = n - 1;
 
-    if (add) {
+        if (add) {
         for (uint32_t j = 0; j < nM1; j += 2) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ += v0;
             *t++ += v0;
-            *t++ += v1;
-            *t++ += v1;
-        }
+                *t++ += v1;
+                *t++ += v1;
+            }
         // Picks up the odd case.
         if (n & 1) {
             unpackComp1(src, v0, v1, volume);
             *t++ += v0;
             *t++ += v0;
         }
-    }
-    else {
+        }
+        else {
         for (uint32_t j = 0; j < nM1; j += 2) {
             unpackComp1(src, v0, v1, volume);
             src += 3;
             *t++ = v0;
             *t++ = v0;
-            *t++ = v1;
-            *t++ = v1;
-        }
+                *t++ = v1;
+                *t++ = v1;
+            }
         if (n & 1) {
             unpackComp1(src, v0, v1, volume);
             *t++ = v0;
@@ -226,15 +226,15 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
 
     assert(t < end);
     int n = wav12Min(FRAME_SAMPLES, int(end - t) / 2);
-        
-    if (add) {
-        *t++ += base * volume;
-        *t++ += base * volume;
-    }
-    else {
-        *t++ = base * volume;
-        *t++ = base * volume;
-    }
+
+        if (add) {
+            *t++ += base * volume;
+            *t++ += base * volume;
+        }
+        else {
+            *t++ = base * volume;
+            *t++ = base * volume;
+        }
 
     if (add) {
         for (int j = 1; j < n; ++j) {
@@ -244,8 +244,8 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
             int32_t v = base * volume;
             *t++ += v;
             *t++ += v;
-        }
     }
+}
     else {
         for (int j = 1; j < n; ++j) {
             base += scale * int8_t(*src) * 16;
@@ -257,6 +257,12 @@ int32_t* Expander::expandComp2(int32_t* t, const uint8_t* src, const int32_t* en
         }
     }
     return t;
+}
+
+void Expander::rewind()
+{
+    m_pos = 0;
+    m_stream->rewind();
 }
 
 
@@ -331,6 +337,26 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume, bool 
         assert(false); // bad format
     }
 }
+
+
+MemStream::MemStream(const uint8_t* data, uint32_t size) {
+    m_data = data;
+    m_size = size;
+    m_pos = 0;
+}
+
+
+void MemStream::set(uint32_t addr, uint32_t size) {
+    assert(addr == 0);  // just not implemented
+    assert(size == this->m_size);
+    m_pos = 0;
+}
+
+
+void MemStream::rewind() {
+    m_pos = 0;
+}
+
 
 uint32_t MemStream::fetch(uint8_t* buffer, uint32_t nBytes)
 {
