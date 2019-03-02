@@ -59,7 +59,8 @@ namespace wav12 {
     class Expander
     {
     public:
-        Expander(uint8_t* buffer, uint32_t bufferSize);
+        Expander();
+        void begin(uint8_t* buffer, uint32_t bufferSize);
         void init(IStream* stream, uint32_t nSamples, int format);
 
         // Expand to the target buffer with a length of nTarget.
@@ -77,6 +78,7 @@ namespace wav12 {
         
         uint32_t samples() const { return m_nSamples; }
         uint32_t pos() const     { return m_pos; }
+        void rewind();
 
     private:
         int32_t* expandComp0(int32_t* target, const int16_t* src, uint32_t n, int32_t volume, bool add);

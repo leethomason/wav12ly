@@ -119,7 +119,14 @@ void wav12::compress(const int16_t* data, int32_t nSamples, uint8_t** compressed
 }
 
 
-Expander::Expander(uint8_t* buffer, uint32_t bufferSize)
+Expander::Expander()
+{
+    m_buffer = 0;
+    m_bufferSize = 0;
+    init(0, 0, 0);
+}
+
+void Expander::begin(uint8_t* buffer, uint32_t bufferSize)
 {
     m_buffer = buffer;
     m_bufferSize = bufferSize;

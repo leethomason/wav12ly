@@ -8,6 +8,7 @@ namespace wav12 {
     class IStream {
     public:
         virtual uint32_t fetch(uint8_t* target, uint32_t nBytes) = 0;
+        virtual void rewind() = 0;
     };
 
 }
