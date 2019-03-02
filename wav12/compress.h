@@ -35,19 +35,11 @@ namespace wav12 {
     class MemStream : public wav12::IStream
     {
     public:
-        MemStream(const uint8_t* data, uint32_t size) {
-            m_data = data;
-            m_size = size;
-            m_pos = 0;
-        }
+        MemStream(const uint8_t* data, uint32_t size);
 
-        void init(const uint8_t* data, uint32_t size) {
-            m_data = data;
-            m_size = size;
-            m_pos = 0;
-        }
-        
+        virtual void set(uint32_t addr, uint32_t size);
         virtual uint32_t fetch(uint8_t* buffer, uint32_t nBytes);
+        virtual void rewind();
 
      protected:
          const uint8_t* m_data;
@@ -59,7 +51,8 @@ namespace wav12 {
     class Expander
     {
     public:
-        Expander(uint8_t* buffer, uint32_t bufferSize);
+        Expander();
+        void begin(uint8_t* buffer, uint32_t bufferSize);
         void init(IStream* stream, uint32_t nSamples, int format);
 
         // Expand to the target buffer with a length of nTarget.
@@ -77,6 +70,7 @@ namespace wav12 {
         
         uint32_t samples() const { return m_nSamples; }
         uint32_t pos() const     { return m_pos; }
+        void rewind();
 
     private:
         int32_t* expandComp0(int32_t* target, const int16_t* src, uint32_t n, int32_t volume, bool add);

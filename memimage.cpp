@@ -127,7 +127,8 @@ void MemImageUtil::dumpConsole()
                         dataVec + fileUnit.offset + sizeof(wav12::Wav12Header),
                         header->lenInBytes);
                     
-                    wav12::Expander expander(subBuffer, SUB_BUFFER_SIZE);
+                    wav12::Expander expander;
+                    expander.begin(subBuffer, SUB_BUFFER_SIZE);
                     expander.init(&memStream, header->nSamples, header->format);
                     int errorRange = 1;
                     if (header->format == 1) errorRange = 16;
