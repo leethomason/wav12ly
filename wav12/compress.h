@@ -29,9 +29,21 @@ namespace wav12 {
         uint8_t  unused[3];
     };
 
+    struct Velocity
+    {
+        int prev2 = 0;
+        int prev1 = 0;
+        int guess() const { return 2 * prev1 - prev2; }
+        void push(int value) {
+            prev2 = prev1;
+            prev1 = value;
+        }
+    };
+
     void compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
     bool compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, float* errorRatio);
-    
+    bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+
     class MemStream : public wav12::IStream
     {
     public:
@@ -64,7 +76,7 @@ namespace wav12 {
         // Volume max is 65536.
         // If 'add' is true, will add to the target buffer (for mixing), else
         // will just write & replace.
-        void expand2(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
+        void expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
 
         bool done() const { return m_nSamples == m_pos; }
         
@@ -76,9 +88,6 @@ namespace wav12 {
         int32_t* expandComp0(int32_t* target, const int16_t* src, uint32_t n, int32_t volume, bool add);
         int32_t* expandComp1(int32_t* target, const uint8_t* src, uint32_t n, const int32_t* end, int32_t volume, bool add);
         int32_t* expandComp2(int32_t* target, const uint8_t* src, const int32_t* end, int32_t volume, bool add);
-
-
-        uint32_t fetchSamples(uint32_t n);
 
         IStream* m_stream;
         uint32_t m_nSamples;

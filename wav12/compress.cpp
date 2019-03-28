@@ -10,6 +10,54 @@ static const int FRAME_SAMPLES = 16;
 static const int FRAME_BYTES = 17;
 
 /*
+int wav12::checkRun(const int16_t* data, const Velocity& inVel, int n)
+{
+    if (n == 0) return 0;
+    Velocity vel = inVel;
+    for (int i = 0; i < n; i++) {
+        int value = data[i] / 16;
+        int guess = vel.guess();
+        int delta = value - guess;
+        if (delta < -128 || delta > 127) return i;
+        vel.push(value);
+    }
+    return n - 1;
+}
+*/
+
+bool wav12::compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
+{
+    Velocity vel;
+
+    *compressed = new uint8_t[nSamples * 2];
+    uint8_t* target = *compressed;
+
+    for (int i = 0; i < nSamples; i++)
+    {
+        int value = data[i] / 16;
+        int guess = vel.guess();
+        int delta = value - guess;
+
+        uint16_t high = uint16_t(delta) & 0xff00;
+        uint16_t low  = uint16_t(delta) & 0x00ff;
+
+        if (delta < 64 && delta >= -64) {
+            *target++ = uint8_t(low) & 0xf0;
+        }
+        else {
+            *target++ = uint8_t(high >> 8);
+            *target++ = uint8_t(low);
+        }
+        vel.push(value);
+    }
+    size_t size = target - *compressed;
+    *nCompressed = uint32_t(size);
+
+    return false;
+}
+
+
+/*
     wav12 format=1 writes 16 samples in 24 bytes (75%)
     wav12 format=2 writes 16 samples in:
         12 bit header + 4 bits scale + 15 * 8 bits =
@@ -266,7 +314,7 @@ void Expander::rewind()
 }
 
 
-void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
+void Expander::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
 {
     m_pos += nSamples;
     const int32_t* end = target + nSamples * 2;
@@ -332,6 +380,9 @@ void Expander::expand2(int32_t* target, uint32_t nSamples, int32_t volume, bool 
             }
             i += nSamplesFetched;
         }
+    }
+    else if (m_format == 3) {
+
     }
     else {
         assert(false); // bad format
