@@ -59,6 +59,38 @@ namespace wav12 {
          uint32_t m_pos;
     };
 
+    class ExpanderV
+    {
+    public:
+        static const int BUFFER_SIZE = 256;
+
+        ExpanderV() {}
+        void init(IStream* stream, uint32_t nSamples, int format);
+
+        void expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
+        bool done() const { return m_done; }
+        void rewind();
+
+    private:
+        inline bool hasSample() {
+            if (m_bufferStart < m_bufferEnd - 1)
+                return true;
+
+            if (m_bufferStart == m_bufferEnd - 1 &&
+                m_buffer[m_bufferStart] & 0x80)
+                return true;
+
+            return false;
+        }
+        void fetch();
+
+        uint8_t m_buffer[BUFFER_SIZE];
+        IStream* m_stream = 0;
+        int m_bufferEnd = 0;      // position in the buffer
+        int m_bufferStart = 0;
+        bool m_done = false;
+        Velocity m_vel;
+    };
 
     class Expander
     {

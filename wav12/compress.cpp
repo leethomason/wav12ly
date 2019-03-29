@@ -9,21 +9,6 @@ using namespace wav12;
 static const int FRAME_SAMPLES = 16;
 static const int FRAME_BYTES = 17;
 
-/*
-int wav12::checkRun(const int16_t* data, const Velocity& inVel, int n)
-{
-    if (n == 0) return 0;
-    Velocity vel = inVel;
-    for (int i = 0; i < n; i++) {
-        int value = data[i] / 16;
-        int guess = vel.guess();
-        int delta = value - guess;
-        if (delta < -128 || delta > 127) return i;
-        vel.push(value);
-    }
-    return n - 1;
-}
-*/
 
 bool wav12::compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
 {
@@ -38,15 +23,20 @@ bool wav12::compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** co
         int guess = vel.guess();
         int delta = value - guess;
 
-        uint16_t high = uint16_t(delta) & 0xff00;
-        uint16_t low  = uint16_t(delta) & 0x00ff;
 
         if (delta < 64 && delta >= -64) {
-            *target++ = uint8_t(low) & 0xf0;
+            static const int BIAS = 64;
+            uint8_t bits = (delta + BIAS);
+            *target++ = bits | 0x80;
         }
         else {
-            *target++ = uint8_t(high >> 8);
-            *target++ = uint8_t(low);
+            assert(value < 2048 && value >= -2048);
+            static const int BIAS = 2048;
+            uint32_t low7 = (BIAS + value) & 0x07f;
+            uint32_t high5 = ((BIAS + value) & 0xf80) >> 7;
+
+            *target++ = low7;
+            *target++ = high5;
         }
         vel.push(value);
     }
@@ -381,14 +371,85 @@ void Expander::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool a
             i += nSamplesFetched;
         }
     }
-    else if (m_format == 3) {
-
-    }
     else {
         assert(false); // bad format
     }
 }
 
+void ExpanderV::init(IStream* stream, uint32_t nSamples, int format)
+{
+    assert(format == 3);
+    m_stream = stream;
+    m_done = false;
+}
+
+
+void ExpanderV::rewind()
+{
+    m_bufferEnd = m_bufferStart = 0;
+    memset(m_buffer, 0, BUFFER_SIZE);
+    m_vel = Velocity();
+    m_done = false;
+    m_stream->rewind();
+}
+
+
+void ExpanderV::fetch()
+{
+    if (m_bufferStart < m_bufferEnd) {
+        assert(m_bufferStart == m_bufferEnd - 1);
+        assert(m_bufferStart > 0);
+        m_buffer[0] = m_buffer[m_bufferStart];
+        m_bufferStart = 1;
+    }
+    else {
+        m_bufferStart = 0;
+    }
+    uint32_t read = 
+        m_stream->fetch(m_buffer, BUFFER_SIZE - m_bufferStart);
+    m_bufferEnd = m_bufferStart + read;
+    if (read == 0) {
+        m_done = true;
+    }
+}
+
+void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
+{
+    for (uint32_t i = 0; i < nSamples; ++i) {
+        if (!hasSample()) {
+            fetch();
+            if (done())
+                return;
+        }
+        const uint8_t* src = m_buffer + m_bufferStart;
+        int guess = m_vel.guess();
+        int value = 0;
+
+        if ((*src) & 0x80) {
+            static const int BIAS = 64;
+            uint8_t low7 = (*src) & 0x07f;
+            int delta = low7 - BIAS;
+            value = guess + delta;
+            m_bufferStart++;
+        }
+        else {
+            static const int BIAS = 2048;
+            int32_t bits = src[0] + (src[1] << 7);
+            value = bits - BIAS;
+            m_bufferStart += 2;
+        }
+        m_vel.push(value);
+        if (add) {
+            target[0] += value * volume * 16;
+            target[1] += value * volume * 16;
+        }
+        else {
+            target[0] = value * volume * 16;
+            target[1] = value * volume * 16;
+        }
+        target += 2;
+    }
+}
 
 MemStream::MemStream(const uint8_t* data, uint32_t size) {
     m_data = data;
