@@ -145,10 +145,9 @@ void MemImageUtil::dumpConsole()
                     delete[] wav;
                 }
 
-                printf("   %8s at %8d size=%6d (%3dk) comp=%d ratio=%4.2f %s\n", 
+                printf("   %8s at %8d size=%6d (%3dk) ratio=%4.2f %s\n", 
                     fileName, 
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
-                    header->format,
                     float(header->lenInBytes) / (float)(header->nSamples*2),
                     okay ? "ok" : "ERROR" );
 

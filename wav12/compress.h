@@ -25,7 +25,7 @@ namespace wav12 {
         char id[4];             // 'wv12'
         uint32_t lenInBytes;    // after header, compressed size
         uint32_t nSamples;
-        uint8_t  format;        // 0 uncompressed, 1 compressed
+        uint8_t  format;        // 3 is the only supported
         uint8_t  unused[3];
     };
 
@@ -40,8 +40,8 @@ namespace wav12 {
         }
     };
 
-    // Codec 0 is uncompressed.
-    // Codec 1 is 12 bit (loss)
+    // Codec 0 is uncompressed. (100%)
+    // Codec 1 is 12 bit (loss) (75%)
     // Codec 2 is 12 bit (loss) with delta in a frame (63%)
     // Codec 3 is 12 bit (loss) predictive, and already better (58%)
     // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
@@ -95,7 +95,7 @@ namespace wav12 {
 
         // State for decompression
         Velocity m_vel;
-        uint32_t m_high3 = 0;
+        int m_high3 = 0;
         bool m_hasHigh3 = false;
 
     };

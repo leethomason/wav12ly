@@ -104,6 +104,8 @@ void ExpanderV::fetch()
 
 void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
 {
+    static_assert(sizeof(int) <= 4, "depends on 32bit or larger int - specify int type if needed");
+
     for (uint32_t i = 0; i < nSamples; ++i) {
         if (!hasSample()) {
             fetch();
@@ -114,13 +116,12 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
         int guess = m_vel.guess();
         int value = 0;
 
-        if ((*src) & 0x80) {
-            uint8_t low7 = src[0] & 0x7f;
+        if (src[0] & 0x80) {
+            int low7 = src[0] & 0x7f;
 
             if (m_hasHigh3) {
-                assert(m_high3 >= 0 && m_high3 < 8);
                 static const int BIAS = 512;
-                uint32_t bits = ((m_high3 << 7) | low7);
+                int bits = ((m_high3 << 7) | low7);
                 int delta = bits - BIAS;
                 value = guess + delta;
             }
@@ -136,25 +137,24 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
             // Stored as: low7 high5
             static const int BIAS = 2048;
             m_high3 = (src[1] & 0xe0) >> 5; // save for later
-            assert(m_high3 >= 0 && m_high3 < 8);
-            uint32_t low7 = src[0] & 0x7f;
-            assert(low7 < 128);
-            uint32_t high5 = (src[1] & 0x1f);
-            assert(high5 < 32);
-            m_hasHigh3 = true;
-            int32_t bits = low7 | (high5 << 7);
-            assert(bits < 4096);
+
+            int low7 = src[0] & 0x7f;
+            int high5 = (src[1] & 0x1f);
+            int bits = low7 | (high5 << 7);
             value = bits - BIAS;
+
+            m_hasHigh3 = true;
             m_bufferStart += 2;
         }
         m_vel.push(value);
+        int32_t s = value * volume * 16;
         if (add) {
-            target[0] += value * volume * 16;
-            target[1] += value * volume * 16;
+            target[0] += s;
+            target[1] += s;
         }
         else {
-            target[0] = value * volume * 16;
-            target[1] = value * volume * 16;
+            target[0] = s;
+            target[1] = s;
         }
         target += 2;
     }
