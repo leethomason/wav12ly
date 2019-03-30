@@ -16,6 +16,7 @@ bool wav12::compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** co
 
     *compressed = new uint8_t[nSamples * 2];
     uint8_t* target = *compressed;
+    bool hasPrevBits = false;
 
     for (int i = 0; i < nSamples; i++)
     {
@@ -23,20 +24,35 @@ bool wav12::compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** co
         int guess = vel.guess();
         int delta = value - guess;
 
-
-        if (delta < 64 && delta >= -64) {
+        if (hasPrevBits && delta < 512 && delta >= -512) {
+            static const int BIAS = 512;
+            uint32_t bits = delta + BIAS;
+            uint8_t low7 = (bits & 0x7f);
+            uint8_t high3 = (bits & 0x380) >> 7;
+            assert((high3 << 7 | low7) == bits);
+            *target = low7 | 0x80;
+            assert((*(target - 1) & 0xe0) == 0);    // make sure high 3 are empty
+            *(target - 1) |= (high3 << 5);
+            target++;
+            hasPrevBits = false;
+        }
+        else if (delta < 64 && delta >= -64) {
+            assert(!hasPrevBits);
             static const int BIAS = 64;
-            uint8_t bits = (delta + BIAS);
+            uint8_t bits = delta + BIAS;
             *target++ = bits | 0x80;
+            hasPrevBits = false;
         }
         else {
             assert(value < 2048 && value >= -2048);
             static const int BIAS = 2048;
-            uint32_t low7 = (BIAS + value) & 0x07f;
-            uint32_t high5 = ((BIAS + value) & 0xf80) >> 7;
+            int32_t bits = BIAS + value;
+            uint32_t low7 = bits & 0x07f;
+            uint32_t high5 = (bits & 0xf80) >> 7;
 
             *target++ = low7;
             *target++ = high5;
+            hasPrevBits = true;
         }
         vel.push(value);
     }
@@ -428,15 +444,35 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
         int value = 0;
 
         if ((*src) & 0x80) {
-            static const int BIAS = 64;
-            uint8_t low7 = (*src) & 0x07f;
-            int delta = low7 - BIAS;
-            value = guess + delta;
+            uint8_t low7 = src[0] & 0x7f;
+
+            if (m_hasHigh3) {
+                assert(m_high3 >= 0 && m_high3 < 8);
+                static const int BIAS = 512;
+                uint32_t bits = ((m_high3 << 7) | low7);
+                int delta = bits - BIAS;
+                value = guess + delta;
+            }
+            else {
+                static const int BIAS = 64;
+                int delta = low7 - BIAS;
+                value = guess + delta;
+            }
+            m_hasHigh3 = false;
             m_bufferStart++;
         }
         else {
+            // Stored as: low7 high5
             static const int BIAS = 2048;
-            int32_t bits = src[0] + (src[1] << 7);
+            m_high3 = (src[1] & 0xe0) >> 5; // save for later
+            assert(m_high3 >= 0 && m_high3 < 8);
+            uint32_t low7 = src[0] & 0x7f;
+            assert(low7 < 128);
+            uint32_t high5 = (src[1] & 0x1f);
+            assert(high5 < 32);
+            m_hasHigh3 = true;
+            int32_t bits = low7 | (high5 << 7);
+            assert(bits < 4096);
             value = bits - BIAS;
             m_bufferStart += 2;
         }

@@ -40,6 +40,11 @@ namespace wav12 {
         }
     };
 
+    // Codec 0 is uncompressed.
+    // Codec 1 is 12 bit (loss)
+    // Codec 2 is 12 bit (loss) with delta in a frame (63%)
+    // Codec 3 is 12 bit (loss) predictive, and already better (58%)
+    // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
     void compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
     bool compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, float* errorRatio);
     bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
@@ -89,7 +94,12 @@ namespace wav12 {
         int m_bufferEnd = 0;      // position in the buffer
         int m_bufferStart = 0;
         bool m_done = false;
+
+        // State for decompression
         Velocity m_vel;
+        uint32_t m_high3 = 0;
+        bool m_hasHigh3 = false;
+
     };
 
     class Expander
