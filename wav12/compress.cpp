@@ -83,8 +83,12 @@ void ExpanderV::rewind()
 
 void ExpanderV::fetch()
 {
+    // Each sample is one or two bytes.
     uint32_t read = 0;
     if (m_bufferStart < m_bufferEnd) {
+        // In this case, we have the 1st byte of a pair, but
+        // not the 2nd. So the 2nd has to be there, and
+        // we can't be done.
         assert(m_bufferStart == m_bufferEnd - 1);
         assert(m_bufferStart > 0);
         m_buffer[0] = m_buffer[m_bufferStart];
@@ -93,6 +97,7 @@ void ExpanderV::fetch()
         m_bufferEnd = read + 1;
     }
     else {
+        // We were on a sample boundary, so read as much as possible.
         read = m_stream->fetch(m_buffer, BUFFER_SIZE);
         m_bufferEnd = read;
     }
