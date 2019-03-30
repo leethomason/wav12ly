@@ -396,18 +396,20 @@ void ExpanderV::rewind()
 
 void ExpanderV::fetch()
 {
+    uint32_t read = 0;
     if (m_bufferStart < m_bufferEnd) {
         assert(m_bufferStart == m_bufferEnd - 1);
         assert(m_bufferStart > 0);
         m_buffer[0] = m_buffer[m_bufferStart];
-        m_bufferStart = 1;
+        read = m_stream->fetch(m_buffer+1, BUFFER_SIZE - 1);
+        assert(read > 0);
+        m_bufferEnd = read + 1;
     }
     else {
-        m_bufferStart = 0;
+        read = m_stream->fetch(m_buffer, BUFFER_SIZE);
+        m_bufferEnd = read;
     }
-    uint32_t read = 
-        m_stream->fetch(m_buffer, BUFFER_SIZE - m_bufferStart);
-    m_bufferEnd = m_bufferStart + read;
+    m_bufferStart = 0;
     if (read == 0) {
         m_done = true;
     }

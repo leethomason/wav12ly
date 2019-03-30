@@ -127,29 +127,46 @@ void MemImageUtil::dumpConsole()
                         dataVec + fileUnit.offset + sizeof(wav12::Wav12Header),
                         header->lenInBytes);
                     
-                    wav12::Expander expander;
-                    expander.begin(subBuffer, SUB_BUFFER_SIZE);
-                    expander.init(&memStream, header->nSamples, header->format);
-                    int errorRange = 1;
-                    if (header->format == 1) errorRange = 16;
-                    else if (header->format == 2) errorRange = 16000;   // turn off
-
                     static const int STEREO_SAMPLES = 256;
-                    int32_t stereo[STEREO_SAMPLES*2];
+                    int32_t stereo[STEREO_SAMPLES * 2];
 
-                    for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
-                        int n = miMin(STEREO_SAMPLES, nSamples - i);
-                        expander.expand(stereo, n, 1, false);
+                    if (header->format < 3) {
+                        wav12::Expander expander;
+                        expander.begin(subBuffer, SUB_BUFFER_SIZE);
+                        expander.init(&memStream, header->nSamples, header->format);
+                        int errorRange = 1;
+                        if (header->format == 1) errorRange = 16;
+                        else if (header->format == 2) errorRange = 16000;   // turn off
 
-                        for (int j = 0; j < n; ++j) {
-                            int diff = abs(stereo[j * 2] - wav[i + j]);
-                            if (diff >= errorRange) {
-                                assert(false);
-                                okay = false;
+                        for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
+                            int n = miMin(STEREO_SAMPLES, nSamples - i);
+                            expander.expand(stereo, n, 1, false);
+
+                            for (int j = 0; j < n; ++j) {
+                                int diff = abs(stereo[j * 2] - wav[i + j]);
+                                if (diff >= errorRange) {
+                                    assert(false);
+                                    okay = false;
+                                }
                             }
                         }
                     }
+                    else if (header->format == 3) {
+                        wav12::ExpanderV expander;
+                        expander.init(&memStream, header->nSamples, header->format);
+                        for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
+                            int n = miMin(STEREO_SAMPLES, nSamples - i);
+                            expander.expand(stereo, n, 1, false);
 
+                            for (int j = 0; j < n; ++j) {
+                                int diff = abs(stereo[j * 2] - wav[i + j]);
+                                if (diff >= 16) {
+                                    assert(false);
+                                    okay = false;
+                                }
+                            }
+                        }
+                    }
                     delete[] wav;
                 }
 
