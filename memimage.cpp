@@ -83,8 +83,6 @@ void MemImageUtil::dumpConsole()
 {
     uint32_t totalUncompressed = 0, totalSize = 0;
     const MemImage* image = (const MemImage*)dataVec;
-    static const int SUB_BUFFER_SIZE = 64;
-    uint8_t subBuffer[SUB_BUFFER_SIZE];
 
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
@@ -130,40 +128,17 @@ void MemImageUtil::dumpConsole()
                     static const int STEREO_SAMPLES = 256;
                     int32_t stereo[STEREO_SAMPLES * 2];
 
-                    if (header->format < 3) {
-                        wav12::Expander expander;
-                        expander.begin(subBuffer, SUB_BUFFER_SIZE);
-                        expander.init(&memStream, header->nSamples, header->format);
-                        int errorRange = 1;
-                        if (header->format == 1) errorRange = 16;
-                        else if (header->format == 2) errorRange = 16000;   // turn off
+                    wav12::ExpanderV expander;
+                    expander.init(&memStream, header->nSamples, header->format);
+                    for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
+                        int n = miMin(STEREO_SAMPLES, nSamples - i);
+                        expander.expand(stereo, n, 1, false);
 
-                        for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
-                            int n = miMin(STEREO_SAMPLES, nSamples - i);
-                            expander.expand(stereo, n, 1, false);
-
-                            for (int j = 0; j < n; ++j) {
-                                int diff = abs(stereo[j * 2] - wav[i + j]);
-                                if (diff >= errorRange) {
-                                    assert(false);
-                                    okay = false;
-                                }
-                            }
-                        }
-                    }
-                    else if (header->format == 3) {
-                        wav12::ExpanderV expander;
-                        expander.init(&memStream, header->nSamples, header->format);
-                        for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
-                            int n = miMin(STEREO_SAMPLES, nSamples - i);
-                            expander.expand(stereo, n, 1, false);
-
-                            for (int j = 0; j < n; ++j) {
-                                int diff = abs(stereo[j * 2] - wav[i + j]);
-                                if (diff >= 16) {
-                                    assert(false);
-                                    okay = false;
-                                }
+                        for (int j = 0; j < n; ++j) {
+                            int diff = abs(stereo[j * 2] - wav[i + j]);
+                            if (diff >= 16) {
+                                assert(false);
+                                okay = false;
                             }
                         }
                     }
