@@ -109,8 +109,6 @@ void ExpanderV::fetch()
 
 void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add)
 {
-    static_assert(sizeof(int) <= 4, "depends on 32bit or larger int - specify int type if needed");
-
     for (uint32_t i = 0; i < nSamples; ++i) {
         if (!hasSample()) {
             fetch();
@@ -118,21 +116,21 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
                 return;
         }
         const uint8_t* src = m_buffer + m_bufferStart;
-        int guess = m_vel.guess();
-        int value = 0;
+        const int32_t guess = m_vel.guess();
+        int32_t value = 0;
 
         if (src[0] & 0x80) {
-            int low7 = src[0] & 0x7f;
+            int32_t low7 = src[0] & 0x7f;
 
             if (m_hasHigh3) {
-                static const int BIAS = 512;
-                int bits = ((m_high3 << 7) | low7);
-                int delta = bits - BIAS;
+                static const int32_t BIAS = 512;
+                int32_t bits = ((m_high3 << 7) | low7);
+                int32_t delta = bits - BIAS;
                 value = guess + delta;
             }
             else {
-                static const int BIAS = 64;
-                int delta = low7 - BIAS;
+                static const int32_t BIAS = 64;
+                int32_t delta = low7 - BIAS;
                 value = guess + delta;
             }
             m_hasHigh3 = false;
@@ -140,12 +138,12 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
         }
         else {
             // Stored as: low7 high5
-            static const int BIAS = 2048;
+            static const int32_t BIAS = 2048;
             m_high3 = (src[1] & 0xe0) >> 5; // save for later
 
-            int low7 = src[0] & 0x7f;
-            int high5 = (src[1] & 0x1f);
-            int bits = low7 | (high5 << 7);
+            int32_t low7 = src[0] & 0x7f;
+            int32_t high5 = (src[1] & 0x1f);
+            int32_t bits = low7 | (high5 << 7);
             value = bits - BIAS;
 
             m_hasHigh3 = true;
@@ -155,7 +153,7 @@ void ExpanderV::expand(int32_t* target, uint32_t nSamples, int32_t volume, bool 
         int32_t s = value * volume * 16;
         if (add) {
             target[0] += s;
-            target[1] += s;
+            target[1] = target[0];
         }
         else {
             target[0] = s;
