@@ -121,15 +121,14 @@ void MemImageUtil::dumpConsole()
                     assert(fileUnit.size == header->lenInBytes + sizeof(wav12::Wav12Header));
                     assert(nSamples == header->nSamples);
                     
-                    wav12::MemStream memStream(
-                        dataVec + fileUnit.offset + sizeof(wav12::Wav12Header),
-                        header->lenInBytes);
+                    wav12::MemStream memStream(dataVec, DATA_VEC_SIZE);
+                    memStream.set(fileUnit.offset + sizeof(wav12::Wav12Header), header->lenInBytes);
                     
                     static const int STEREO_SAMPLES = 256;
                     int32_t stereo[STEREO_SAMPLES * 2];
 
                     wav12::ExpanderV expander;
-                    expander.init(&memStream, header->nSamples, header->format);
+                    expander.init(&memStream);
                     for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
                         int n = miMin(STEREO_SAMPLES, nSamples - i);
                         expander.expand(stereo, n, 1, false);

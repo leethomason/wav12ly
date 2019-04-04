@@ -46,33 +46,39 @@ namespace wav12 {
     // Codec 3 is 12 bit (loss) predictive, and already better (58%)
     // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
     bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
-
+    
     class MemStream : public wav12::IStream
     {
     public:
-        MemStream(const uint8_t* data, uint32_t size);
-
+        MemStream(const uint8_t* data, uint32_t dataSize);
+        
         virtual void set(uint32_t addr, uint32_t size);
         virtual uint32_t fetch(uint8_t* buffer, uint32_t nBytes);
         virtual void rewind();
 
-    protected:
+     protected:
         const uint8_t* m_data;
-        uint32_t m_size;
-        uint32_t m_pos;
+        const uint8_t* m_data_end;
+        uint32_t m_addr = 0;
+        uint32_t m_size = 0;
+        uint32_t m_pos = 0;
     };
 
     class ExpanderV
     {
     public:
-        static const int BUFFER_SIZE = 256;
+        static const int BUFFER_SIZE = 128;
 
         ExpanderV() {}
-        void init(IStream* stream, uint32_t nSamples, int format);
+        void init(IStream* stream);
 
-        void expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
+        // Returns the number of samples it could expand.
+        int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
         bool done() const { return m_done; }
         void rewind();
+
+        // Debugging
+        const IStream* stream() const { return m_stream; }        
 
     private:
         inline bool hasSample() {
@@ -82,11 +88,11 @@ namespace wav12 {
             if (m_bufferStart == m_bufferEnd - 1 &&
                 m_buffer[m_bufferStart] & 0x80)
                 return true;
-
+        
             return false;
         }
         void fetch();
-
+        
         uint8_t m_buffer[BUFFER_SIZE];
         IStream* m_stream = 0;
         int m_bufferEnd = 0;      // position in the buffer
