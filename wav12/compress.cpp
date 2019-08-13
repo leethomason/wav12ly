@@ -1,8 +1,14 @@
 #include "compress.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 #include <limits.h>
+
+#ifdef _MSC_VER
+#include <assert.h>
+#define ASSERT assert
+#else
+#define ASSERT
+#endif
 
 using namespace wav12;
 
@@ -29,16 +35,16 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
             uint32_t bits = delta + BIAS;
             uint8_t low7 = (bits & 0x7f);
             uint8_t high3 = (bits & 0x380) >> 7;
-            //assert((high3 << 7 | low7) == bits);
+            ASSERT((high3 << 7 | low7) == bits);
             *target = low7 | 0x80;
-            //assert((*(target - 1) & 0xe0) == 0);    // make sure high 3 are empty
+            ASSERT((*(target - 1) & 0xe0) == 0);    // make sure high 3 are empty
             *(target - 1) |= (high3 << 5);
             target++;
             hasPrevBits = false;
         }
         else if (delta < 64 && delta >= -64)
         {
-            assert(!hasPrevBits);
+            ASSERT(!hasPrevBits);
             static const int BIAS = 64;
             uint8_t bits = delta + BIAS;
             *target++ = bits | 0x80;
@@ -46,7 +52,7 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
         }
         else
         {
-            assert(value < 2048 && value >= -2048);
+            ASSERT(value < 2048 && value >= -2048);
             static const int BIAS = 2048;
             int32_t bits = BIAS + value;
             uint32_t low7 = bits & 0x07f;
@@ -67,14 +73,12 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
 void ExpanderV::init(IStream *stream)
 {
     m_stream = stream;
-    m_done = false;
 }
 
 void ExpanderV::rewind()
 {
     m_bufferEnd = m_bufferStart = 0;
     m_vel = Velocity();
-    m_done = false;
     m_stream->rewind();
 }
 
@@ -87,23 +91,19 @@ void ExpanderV::fetch()
         // In this case, we have the 1st byte of a pair, but
         // not the 2nd. So the 2nd has to be there, and
         // we can't be done.
-        assert(m_bufferStart == m_bufferEnd - 1);
-        assert(m_bufferStart > 0);
+        ASSERT(m_bufferStart == m_bufferEnd - 1);
+        ASSERT(m_bufferStart > 0);
         m_buffer[0] = m_buffer[m_bufferStart];
-        read = m_stream->fetch(m_buffer+1, BUFFER_SIZE - 1);
-        assert(read > 0);
+        read = m_stream->fetch(m_buffer + 1, BUFFER_SIZE - 1);
+        ASSERT(read > 0);
         m_bufferEnd = read + 1;
-            }
-            else {
+    }
+    else {
         // We were on a sample boundary, so read as much as possible.
         read = m_stream->fetch(m_buffer, BUFFER_SIZE);
         m_bufferEnd = read;
     }
     m_bufferStart = 0;
-    if (read == 0)
-    {
-        m_done = true;
-    }
 }
 
 int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add)
@@ -113,12 +113,14 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
 
     for (uint32_t i = 0; i < nSamples; ++i)
     {
-        if (!hasSample())
+        if (m_bufferEnd == m_bufferStart ||
+            ((m_bufferStart + 1 == m_bufferEnd) && (m_buffer[m_bufferStart] & 0x80) == 0))
         {
             fetch();
-            if (done())
+            if (m_bufferEnd == 0)
                 return i;
         }
+
         const uint8_t *src = m_buffer + m_bufferStart;
         const int32_t guess = m_vel.guess();
         int32_t value = 0;
@@ -195,7 +197,7 @@ void MemStream::set(uint32_t addr, uint32_t size)
     m_addr = addr;
     m_size = size;
     m_pos = 0;
-    assert(m_data + m_addr + m_size <= m_data_end);
+    ASSERT(m_data + m_addr + m_size <= m_data_end);
 }
 
 void MemStream::rewind()

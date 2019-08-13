@@ -74,30 +74,18 @@ namespace wav12 {
 
         // Returns the number of samples it could expand.
         int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
-        bool done() const { return m_done; }
         void rewind();
 
         // Debugging
         const IStream* stream() const { return m_stream; }        
 
     private:
-        inline bool hasSample() {
-            if (m_bufferStart < m_bufferEnd - 1)
-                return true;
-
-            if (m_bufferStart == m_bufferEnd - 1 &&
-                m_buffer[m_bufferStart] & 0x80)
-                return true;
-        
-            return false;
-        }
         void fetch();
         
         uint8_t m_buffer[BUFFER_SIZE];
         IStream* m_stream = 0;
         int m_bufferEnd = 0;      // position in the buffer
         int m_bufferStart = 0;
-        bool m_done = false;
 
         // State for decompression
         Velocity m_vel;
