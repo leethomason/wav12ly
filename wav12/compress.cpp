@@ -111,6 +111,8 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
     if (!m_stream)
         return 0;
 
+    int mult = add ? 1 : 0;
+
     for (uint32_t i = 0; i < nSamples; ++i)
     {
         if (m_bufferEnd == m_bufferStart ||
@@ -168,16 +170,8 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
         }
         m_vel.push(value);
         int32_t s = value * volume * 16;
-        if (add)
-        {
-            target[0] += s;
-            target[1] = target[0];
-        }
-        else
-        {
-            target[0] = s;
-            target[1] = s;
-        }
+
+        target[0] = target[1] = target[0] * mult + s;
         target += 2;
     }
     return nSamples;
