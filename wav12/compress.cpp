@@ -15,7 +15,8 @@ using namespace wav12;
 static const int FRAME_SAMPLES = 16;
 static const int FRAME_BYTES = 17;
 
-bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **compressed, uint32_t *nCompressed)
+bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **compressed, 
+    uint32_t *nCompressed, int32_t* stages, int32_t* deltaGroup)
 {
     Velocity vel;
 
@@ -29,6 +30,16 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
         int guess = vel.guess();
         int delta = value - guess;
 
+        if (deltaGroup) {
+            for (int j = 0; j < 16; ++j) {
+                int v = (1 << j) / 2;
+                if (delta < v && delta >= -v) {
+                    deltaGroup[j]++;
+                    break;
+                }
+            }
+        }
+
         if (hasPrevBits && delta < 512 && delta >= -512)
         {
             static const int BIAS = 512;
@@ -41,6 +52,7 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
             *(target - 1) |= (high3 << 5);
             target++;
             hasPrevBits = false;
+            if (stages) stages[1]++;
         }
         else if (delta < 64 && delta >= -64)
         {
@@ -49,6 +61,7 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
             uint8_t bits = delta + BIAS;
             *target++ = bits | 0x80;
             hasPrevBits = false;
+            if (stages) stages[0]++;
         }
         else
         {
@@ -61,6 +74,7 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
             *target++ = low7;
             *target++ = high5;
             hasPrevBits = true;
+            if (stages) stages[2]++;
         }
         vel.push(value);
     }

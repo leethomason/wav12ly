@@ -33,7 +33,10 @@ namespace wav12 {
     {
         int prev2 = 0;
         int prev1 = 0;
-        int guess() const { return 2 * prev1 - prev2; }
+        int guess() const { 
+            return 2 * prev1 - prev2; 
+            //return prev1 + 32 * (prev1 - prev2) / 64;
+        }
         void push(int value) {
             prev2 = prev1;
             prev1 = value;
@@ -45,7 +48,8 @@ namespace wav12 {
     // Codec 2 is 12 bit (loss) with delta in a frame (63%)
     // Codec 3 is 12 bit (loss) predictive, and already better (58%)
     // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
-    bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+    bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, 
+        int32_t* stages, int32_t* deltaGroup);
     
     class MemStream : public wav12::IStream
     {
