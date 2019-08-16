@@ -12,17 +12,17 @@
 
 using namespace wav12;
 
-static const int FRAME_SAMPLES = 16;
-static const int FRAME_BYTES = 17;
-
 bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **compressed, 
-    uint32_t *nCompressed, int32_t* stages, int32_t* deltaGroup)
+    uint32_t *nCompressed, int32_t* stages)
 {
     Velocity vel;
 
     *compressed = new uint8_t[nSamples * 2];
     uint8_t *target = *compressed;
-    bool hasPrevBits = false;
+
+    static const int MAX_STACK = 16;
+    uint8_t* stack[ExpanderV::MAX_STACK]; // Pointer to locations of where to write high bits.
+    int nStack = 0;
 
     for (int i = 0; i < nSamples; i++)
     {
@@ -30,37 +30,28 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
         int guess = vel.guess();
         int delta = value - guess;
 
-        if (deltaGroup) {
-            for (int j = 0; j < 16; ++j) {
-                int v = (1 << j) / 2;
-                if (delta < v && delta >= -v) {
-                    deltaGroup[j]++;
-                    break;
-                }
-            }
-        }
-
-        if (hasPrevBits && delta < 512 && delta >= -512)
+        if (nStack && delta < 512 && delta >= -512)
         {
             static const int BIAS = 512;
             uint32_t bits = delta + BIAS;
             uint8_t low7 = (bits & 0x7f);
             uint8_t high3 = (bits & 0x380) >> 7;
             ASSERT((high3 << 7 | low7) == bits);
-            *target = low7 | 0x80;
-            ASSERT((*(target - 1) & 0xe0) == 0);    // make sure high 3 are empty
-            *(target - 1) |= (high3 << 5);
-            target++;
-            hasPrevBits = false;
+            *target++ = low7 | 0x80;
+
+            nStack--;
+            ASSERT(((*stack[nStack]) & 0xe0) == 0);
+            *stack[nStack] |= (high3 << 5);
+
             if (stages) stages[1]++;
         }
         else if (delta < 64 && delta >= -64)
         {
-            ASSERT(!hasPrevBits);
+            ASSERT(!nStack);    // Since we always flush the stack when possible,
+                                // there shouldn't be a way to get to this if stack has data.
             static const int BIAS = 64;
             uint8_t bits = delta + BIAS;
             *target++ = bits | 0x80;
-            hasPrevBits = false;
             if (stages) stages[0]++;
         }
         else
@@ -72,8 +63,14 @@ bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **co
             uint32_t high5 = (bits & 0xf80) >> 7;
 
             *target++ = low7;
-            *target++ = high5;
-            hasPrevBits = true;
+            *target = high5;
+
+            if (nStack < ExpanderV::MAX_STACK) {
+                stack[nStack] = target;
+                nStack++;
+            }
+            target++;
+
             if (stages) stages[2]++;
         }
         vel.push(value);
@@ -93,6 +90,7 @@ void ExpanderV::rewind()
 {
     m_bufferEnd = m_bufferStart = 0;
     m_vel = Velocity();
+    m_nStack = 0;
     m_stream->rewind();
 }
 
@@ -142,16 +140,19 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
         int32_t value = 0;
 
         // If the high bit is a set, it is a 1 byte sample.
-        // If extra bits - high3 - are carried over from
-        // a previous 2 byte sample, they are applied here.
+        // If extra bits are on the stack, they are appiled to increase the range.
         if (src[0] & 0x80)
         {
             int32_t low7 = src[0] & 0x7f;
 
-            if (m_hasHigh3)
+            if (m_nStack)
             {
+                --m_nStack;
+                int32_t high3 = m_stack[m_nStack];
+                ASSERT(high3 >= 0 && high3 < 8);
+
                 static const int32_t BIAS = 512;
-                int32_t bits = ((m_high3 << 7) | low7);
+                int32_t bits = ((high3 << 7) | low7);
                 int32_t delta = bits - BIAS;
                 value = guess + delta;
             }
@@ -161,7 +162,6 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
                 int32_t delta = low7 - BIAS;
                 value = guess + delta;
             }
-            m_hasHigh3 = false;
             m_bufferStart++;
         }
         else
@@ -172,14 +172,15 @@ int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool a
             //
             // Stored as: low7 high5
             static const int32_t BIAS = 2048;
-            m_high3 = (src[1] & 0xe0) >> 5;
+            if (m_nStack < MAX_STACK) {
+                m_stack[m_nStack++] = (src[1] & 0xe0) >> 5;
+            }
 
             int32_t low7 = src[0] & 0x7f;
             int32_t high5 = (src[1] & 0x1f);
             int32_t bits = low7 | (high5 << 7);
             value = bits - BIAS;
 
-            m_hasHigh3 = true;
             m_bufferStart += 2;
         }
         m_vel.push(value);

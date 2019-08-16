@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <limits.h>
 
 namespace wav12 {
 
@@ -35,7 +36,6 @@ namespace wav12 {
         int prev1 = 0;
         int guess() const { 
             return 2 * prev1 - prev2; 
-            //return prev1 + 32 * (prev1 - prev2) / 64;
         }
         void push(int value) {
             prev2 = prev1;
@@ -48,8 +48,10 @@ namespace wav12 {
     // Codec 2 is 12 bit (loss) with delta in a frame (63%)
     // Codec 3 is 12 bit (loss) predictive, and already better (58%)
     // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
+    // Codec 3c adds a stack for the high bits. PowerOff 79.2 -> 76.5. Also cleaner code.
+    //
     bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, 
-        int32_t* stages, int32_t* deltaGroup);
+        int32_t* stages);
     
     class MemStream : public wav12::IStream
     {
@@ -72,6 +74,7 @@ namespace wav12 {
     {
     public:
         static const int BUFFER_SIZE = 128;
+        static const int MAX_STACK = 16;
 
         ExpanderV() {}
         void init(IStream* stream);
@@ -93,9 +96,8 @@ namespace wav12 {
 
         // State for decompression
         Velocity m_vel;
-        int m_high3 = 0;
-        bool m_hasHigh3 = false;
-
+        uint8_t m_stack[MAX_STACK];
+        int m_nStack = 0;
     };
 }
 #endif
