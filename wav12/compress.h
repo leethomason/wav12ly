@@ -8,6 +8,8 @@
 #include <string.h>
 #include <limits.h>
 
+//#define TUNE_MODE
+
 namespace wav12 {
 
     template<class T>
@@ -26,7 +28,7 @@ namespace wav12 {
         char id[4];             // 'wv12'
         uint32_t lenInBytes;    // after header, compressed size
         uint32_t nSamples;
-        uint8_t  format;        // 3 is the only supported
+        uint8_t  format; 
         uint8_t  unused[3];
     };
 
@@ -34,8 +36,11 @@ namespace wav12 {
     {
         int prev2 = 0;
         int prev1 = 0;
-        int guess() const { 
-            return 2 * prev1 - prev2; 
+        int guess() const {
+            int g = 2 * prev1 - prev2;
+            if (g > SHRT_MAX) g = SHRT_MAX;
+            if (g < SHRT_MIN) g = SHRT_MIN;
+            return g;
         }
         void push(int value) {
             prev2 = prev1;
@@ -43,26 +48,16 @@ namespace wav12 {
         }
     };
 
-    // Codec 0 is uncompressed. (100%)
-    // Codec 1 is 12 bit (loss) (75%)
-    // Codec 2 is 12 bit (loss) with delta in a frame (63%)
-    // Codec 3 is 12 bit (loss) predictive, and already better (58%)
-    // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
-    // Codec 3c adds a stack for the high bits. PowerOff 79.2 -> 76.5. Also cleaner code.
-    //
-    bool compressVelocity(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, 
-        int32_t* stages);
-    
     class MemStream : public wav12::IStream
     {
     public:
         MemStream(const uint8_t* data, uint32_t dataSize);
-        
+
         virtual void set(uint32_t addr, uint32_t size);
         virtual uint32_t fetch(uint8_t* buffer, uint32_t nBytes);
         virtual void rewind();
 
-     protected:
+    protected:
         const uint8_t* m_data;
         const uint8_t* m_data_end;
         uint32_t m_addr = 0;
@@ -70,34 +65,49 @@ namespace wav12 {
         uint32_t m_pos = 0;
     };
 
-    class ExpanderV
+    class ExpanderAD
     {
     public:
         static const int BUFFER_SIZE = 128;
-        static const int MAX_STACK = 16;
 
-        ExpanderV() {}
+        ExpanderAD() {}
         void init(IStream* stream);
 
         // Returns the number of samples it could expand.
         int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
         void rewind();
 
-        // Debugging
-        const IStream* stream() const { return m_stream; }        
+        // Codec 0 is uncompressed. (100%)
+        // Codec 1 is 12 bit (loss) (75%)
+        // Codec 2 is 12 bit (loss) with delta in a frame (63%)
+        // Codec 3 is 12 bit (loss) predictive, and already better (58%)
+        // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
+        // Codec 3c adds a stack for the high bits. PowerOff 79.2 -> 76.5. Also cleaner code.
+        //
+        // Codec 4 is lossy; predictive, with sliding scale. Similar to ADPCM 
+        // Intending it to be replaced by ADPCM, but need to have a fallback for quality.
+        // Always 2:1. Really good quality. Simpler.
+        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+
+#ifdef TUNE_MODE
+    public:
+        static const int TABLE_SIZE = 8;
+        static int DELTA[TABLE_SIZE];
+#else
+    private:
+        static const int TABLE_SIZE = 8;
+        static const int DELTA[TABLE_SIZE];
+#endif
 
     private:
         void fetch();
-        
+
         uint8_t m_buffer[BUFFER_SIZE];
         IStream* m_stream = 0;
-        int m_bufferEnd = 0;      // position in the buffer
-        int m_bufferStart = 0;
 
         // State for decompression
         Velocity m_vel;
-        uint8_t m_stack[MAX_STACK];
-        int m_nStack = 0;
+        int m_shift;
     };
 }
 #endif

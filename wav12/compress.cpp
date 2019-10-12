@@ -12,185 +12,99 @@
 
 using namespace wav12;
 
-bool wav12::compressVelocity(const int16_t *data, int32_t nSamples, uint8_t **compressed, 
-    uint32_t *nCompressed, int32_t* stages)
-{
-    Velocity vel;
+// fiati:   mse=460     -1 0 1 2 2 2 3 4
+// poweron: mse=1056136 -1 0 1 2 3 3 3 4
+// hum:     mse=73      -1 0 1 2 2 2 3 4
 
-    *compressed = new uint8_t[nSamples * 2];
-    uint8_t *target = *compressed;
+#ifndef TUNE_MODE
+const 
+#endif
+int ExpanderAD::DELTA[TABLE_SIZE] = {
+    -1, 0, 1, 2, 2, 3, 3, 4
+};
 
-    static const int MAX_STACK = 16;
-    uint8_t* stack[ExpanderV::MAX_STACK]; // Pointer to locations of where to write high bits.
-    int nStack = 0;
-
-    for (int i = 0; i < nSamples; i++)
-    {
-        int value = data[i] / 16;
-        int guess = vel.guess();
-        int delta = value - guess;
-
-        if (nStack && delta < 512 && delta >= -512)
-        {
-            static const int BIAS = 512;
-            uint32_t bits = delta + BIAS;
-            uint8_t low7 = (bits & 0x7f);
-            uint8_t high3 = (bits & 0x380) >> 7;
-            ASSERT((high3 << 7 | low7) == bits);
-            *target++ = low7 | 0x80;
-
-            nStack--;
-            ASSERT(((*stack[nStack]) & 0xe0) == 0);
-            *stack[nStack] |= (high3 << 5);
-
-            if (stages) stages[1]++;
-        }
-        else if (delta < 64 && delta >= -64)
-        {
-            ASSERT(!nStack);    // Since we always flush the stack when possible,
-                                // there shouldn't be a way to get to this if stack has data.
-            static const int BIAS = 64;
-            uint8_t bits = delta + BIAS;
-            *target++ = bits | 0x80;
-            if (stages) stages[0]++;
-        }
-        else
-        {
-            ASSERT(value < 2048 && value >= -2048);
-            static const int BIAS = 2048;
-            int32_t bits = BIAS + value;
-            uint32_t low7 = bits & 0x07f;
-            uint32_t high5 = (bits & 0xf80) >> 7;
-
-            *target++ = low7;
-            *target = high5;
-
-            if (nStack < ExpanderV::MAX_STACK) {
-                stack[nStack] = target;
-                nStack++;
-            }
-            target++;
-
-            if (stages) stages[2]++;
-        }
-        vel.push(value);
-    }
-    size_t size = target - *compressed;
-    *nCompressed = uint32_t(size);
-
-    return false;
-}
-
-void ExpanderV::init(IStream *stream)
+void ExpanderAD::init(IStream* stream)
 {
     m_stream = stream;
+    m_shift = 1;
 }
 
-void ExpanderV::rewind()
+void ExpanderAD::rewind()
 {
-    m_bufferEnd = m_bufferStart = 0;
     m_vel = Velocity();
-    m_nStack = 0;
+    m_shift = 1;
     m_stream->rewind();
 }
 
-void ExpanderV::fetch()
+void ExpanderAD::compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
 {
-    // Each sample is one or two bytes.
-    uint32_t read = 0;
-    if (m_bufferStart < m_bufferEnd)
-    {
-        // In this case, we have the 1st byte of a pair, but
-        // not the 2nd. So the 2nd has to be there, and
-        // we can't be done.
-        ASSERT(m_bufferStart == m_bufferEnd - 1);
-        ASSERT(m_bufferStart > 0);
-        m_buffer[0] = m_buffer[m_bufferStart];
-        read = m_stream->fetch(m_buffer + 1, BUFFER_SIZE - 1);
-        ASSERT(read > 0);
-        m_bufferEnd = read + 1;
+    Velocity vel;
+    *nCompressed = nSamples;
+    uint8_t* target = *compressed = new uint8_t[nSamples];
+
+    int shift = 1;
+    for (int i = 0; i < nSamples; ++i) {
+        int value = data[i];
+        int guess = vel.guess();
+        int delta = value - guess;
+
+        uint8_t sign = 0;
+        if (delta < 0) {
+            sign = 128;
+            delta = -delta;
+        }
+
+        delta >>= shift;
+        if (delta > 127) delta = 127;
+
+        target[i] = delta | sign;
+
+        int p = guess + (delta << shift) * (sign ? -1 : 1);
+        vel.push(p);
+
+        shift += DELTA[delta >> 4];
+        if (shift < 0) shift = 0;
+        if (shift > 8) shift = 8;
     }
-    else {
-        // We were on a sample boundary, so read as much as possible.
-        read = m_stream->fetch(m_buffer, BUFFER_SIZE);
-        m_bufferEnd = read;
-    }
-    m_bufferStart = 0;
 }
 
-int ExpanderV::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add)
+
+int ExpanderAD::expand(int32_t *target, uint32_t nSamples, int32_t volume16, bool add)
 {
     if (!m_stream)
         return 0;
 
     int mult = add ? 1 : 0;
+    int n = 0;
 
-    for (uint32_t i = 0; i < nSamples; ++i)
-    {
-        if (m_bufferEnd == m_bufferStart ||
-            ((m_bufferStart + 1 == m_bufferEnd) && (m_buffer[m_bufferStart] & 0x80) == 0))
-        {
-            fetch();
-            if (m_bufferEnd == 0)
-                return i;
+    while (n < int(nSamples)) {
+        int fetch = m_stream->fetch(m_buffer, wav12Min(int(nSamples) - n, BUFFER_SIZE));
+        const uint8_t* p = m_buffer;
+
+        for (int i = 0; i < fetch; ++i) {
+            uint8_t delta = *p++;
+            int guess = m_vel.guess();
+
+            uint8_t sign = delta & 0x80;
+            delta &= 0x7f;
+
+            int value = guess + (delta << m_shift) * (sign ? -1 : 1);
+            m_vel.push(value);
+
+            int32_t s = value * volume16;
+            target[0] = target[1] = target[0] * mult + s;
+            target += 2;
+
+            m_shift += DELTA[delta >> 4];
+            if (m_shift < 0) m_shift = 0;
+            if (m_shift > 8) m_shift = 8;
         }
-
-        const uint8_t *src = m_buffer + m_bufferStart;
-        const int32_t guess = m_vel.guess();
-        int32_t value = 0;
-
-        // If the high bit is a set, it is a 1 byte sample.
-        // If extra bits are on the stack, they are appiled to increase the range.
-        if (src[0] & 0x80)
-        {
-            int32_t low7 = src[0] & 0x7f;
-
-            if (m_nStack)
-            {
-                --m_nStack;
-                int32_t high3 = m_stack[m_nStack];
-                ASSERT(high3 >= 0 && high3 < 8);
-
-                static const int32_t BIAS = 512;
-                int32_t bits = ((high3 << 7) | low7);
-                int32_t delta = bits - BIAS;
-                value = guess + delta;
-            }
-            else
-            {
-                static const int32_t BIAS = 64;
-                int32_t delta = low7 - BIAS;
-                value = guess + delta;
-            }
-            m_bufferStart++;
-        }
-        else
-        {
-            // Two byte sample, since the high bit is NOT set.
-            // 1 bit (clear) flag, 3 bits of storage for the next sample,
-            // and 12 bits of value.
-            //
-            // Stored as: low7 high5
-            static const int32_t BIAS = 2048;
-            if (m_nStack < MAX_STACK) {
-                m_stack[m_nStack++] = (src[1] & 0xe0) >> 5;
-            }
-
-            int32_t low7 = src[0] & 0x7f;
-            int32_t high5 = (src[1] & 0x1f);
-            int32_t bits = low7 | (high5 << 7);
-            value = bits - BIAS;
-
-            m_bufferStart += 2;
-        }
-        m_vel.push(value);
-        int32_t s = value * volume * 16;
-
-        target[0] = target[1] = target[0] * mult + s;
-        target += 2;
+        n += fetch;
     }
     return nSamples;
 }
+
+
 
 MemStream::MemStream(const uint8_t *data, uint32_t size)
 {

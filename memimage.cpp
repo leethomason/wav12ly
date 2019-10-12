@@ -125,9 +125,9 @@ void MemImageUtil::dumpConsole()
                     memStream.set(fileUnit.offset + sizeof(wav12::Wav12Header), header->lenInBytes);
                     
                     static const int STEREO_SAMPLES = 256;
-                    int32_t stereo[STEREO_SAMPLES * 2];
+                   // int32_t stereo[STEREO_SAMPLES * 2];
 
-                    wav12::ExpanderV expander;
+/*                    wav12::ExpanderV expander;
                     expander.init(&memStream);
                     for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
                         int n = miMin(STEREO_SAMPLES, nSamples - i);
@@ -141,6 +141,7 @@ void MemImageUtil::dumpConsole()
                             }
                         }
                     }
+                    */
                     delete[] wav;
                 }
 
