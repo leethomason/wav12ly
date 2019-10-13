@@ -36,7 +36,7 @@ void ExpanderAD::rewind()
     m_stream->rewind();
 }
 
-void ExpanderAD::compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
+void ExpanderAD::compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
 {
     Velocity vel;
     *nCompressed = nSamples;
@@ -104,6 +104,117 @@ int ExpanderAD::expand(int32_t *target, uint32_t nSamples, int32_t volume16, boo
     return nSamples;
 }
 
+// poweron: mse=4349732 -1 0 0 1 1 1 2 3
+// hum:     mse=2437    -1 0 0 0 1 1 2 3
+// fiati:   mse=20122   -1 0 0 0 0 0 1 2
+#ifndef TUNE_MODE
+const 
+#endif
+int ExpanderAD4::DELTA[TABLE_SIZE] = {
+    -1, 0, 0, 1, 1, 1, 2, 3
+};
+
+void ExpanderAD4::init(IStream* stream)
+{
+    m_stream = stream;
+    m_shift = 1;
+    m_high = true;
+}
+
+void ExpanderAD4::rewind()
+{
+    m_vel = Velocity();
+    m_shift = 1;
+    m_high = true;
+    m_stream->rewind();
+}
+
+void ExpanderAD4::compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
+{
+    Velocity vel;
+    *nCompressed = (nSamples + 1) / 2;
+    uint8_t* target = *compressed = new uint8_t[nSamples];
+
+    int shift = 1;
+    bool high = true;
+
+    for (int i = 0; i < nSamples; ++i) {
+        int value = data[i];
+        int guess = vel.guess();
+        int delta = value - guess;
+
+        uint8_t sign = 0;
+        if (delta < 0) {
+            sign = 8;
+            delta = -delta;
+        }
+
+        delta >>= shift;
+        if (delta > 7) delta = 7;
+
+        if (high) {
+            *target = (delta | sign) << 4;
+        }
+        else {
+            *target++ |= (delta | sign);
+        }
+        high = !high;
+
+        int p = guess + (delta << shift) * (sign ? -1 : 1);
+        vel.push(p);
+
+        shift += DELTA[delta];
+        if (shift < 0) shift = 0;
+        if (shift > 12) shift = 12;
+    }
+}
+
+
+int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume16, bool add)
+{
+    if (!m_stream)
+        return 0;
+
+    int mult = add ? 1 : 0;
+    int n = 0;
+
+    while (n < int(nSamples)) {
+        // fixme: handle odd case
+        int nBytes = (nSamples - n + 1) / 2;
+        int fetch = m_stream->fetch(m_buffer, wav12Min(nBytes, BUFFER_SIZE));
+        const uint8_t* p = m_buffer;
+        int ns = wav12Min(fetch * 2, (int)nSamples - n);
+
+        for (int i = 0; i < ns; ++i) {
+            uint8_t delta = 0;
+            if (m_high) {
+                delta = *p >> 4;
+            }
+            else {
+                delta = *p & 0xf;
+                p++;
+            }
+            int guess = m_vel.guess();
+
+            uint8_t sign = delta & 0x8;
+            delta &= 0x7;
+
+            int value = guess + (delta << m_shift) * (sign ? -1 : 1);
+            m_vel.push(value);
+
+            int32_t s = value * volume16;
+            target[0] = target[1] = target[0] * mult + s;
+            target += 2;
+
+            m_shift += DELTA[delta];
+            if (m_shift < 0) m_shift = 0;
+            if (m_shift > 12) m_shift = 12;
+            m_high = !m_high;
+        }
+        n += ns;
+    }
+    return nSamples;
+}
 
 
 MemStream::MemStream(const uint8_t *data, uint32_t size)
