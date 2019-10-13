@@ -9,7 +9,6 @@
 #include <limits.h>
 
 //#define TUNE_MODE
-#define EXPANDER ExpanderAD4
 
 namespace wav12 {
 
@@ -66,15 +65,17 @@ namespace wav12 {
         uint32_t m_pos = 0;
     };
 
-    class ExpanderAD
+    class ExpanderAD4
     {
     public:
         static const int BUFFER_SIZE = 128;
 
-        ExpanderAD() {}
+        ExpanderAD4() {}
         void init(IStream* stream);
 
-        // Returns the number of samples it could expand.
+        // Returns the number of samples it could expand. nTarget should be even,
+        // unless it is the last sample (which can be odd if it uses up the
+        // entire track.)
         int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
         void rewind();
 
@@ -88,6 +89,10 @@ namespace wav12 {
         // Codec 4 is lossy; predictive, with sliding scale. Similar to ADPCM 
         // Intending it to be replaced by ADPCM, but need to have a fallback for quality.
         // Always 2:1. Really good quality. Simpler.
+        //
+        // Codec 4/4-bit is a kind of ADPCM. (Although simpler than the standard algorithm.)
+        // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
+        // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
         static void compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
 
 #ifdef TUNE_MODE
@@ -101,43 +106,6 @@ namespace wav12 {
 #endif
 
     private:
-        void fetch();
-
-        uint8_t m_buffer[BUFFER_SIZE];
-        IStream* m_stream = 0;
-
-        // State for decompression
-        Velocity m_vel;
-        int m_shift;
-    };
-
-
-    class ExpanderAD4
-    {
-    public:
-        static const int BUFFER_SIZE = 128;
-
-        ExpanderAD4() {}
-        void init(IStream* stream);
-
-        // Returns the number of samples it could expand.
-        int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
-        void rewind();
-        static void compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
-
-#ifdef TUNE_MODE
-    public:
-        static const int TABLE_SIZE = 8;
-        static int DELTA[TABLE_SIZE];
-#else
-    private:
-        static const int TABLE_SIZE = 8;
-        static const int DELTA[TABLE_SIZE];
-#endif
-
-    private:
-        void fetch();
-
         uint8_t m_buffer[BUFFER_SIZE];
         IStream* m_stream = 0;
 
