@@ -33,6 +33,12 @@
     <ClInclude Include="..\wave_writer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="s4adpcm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wavutil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\wave_reader.c">
@@ -51,6 +57,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\wave_writer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="s4adpcm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\wavutil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

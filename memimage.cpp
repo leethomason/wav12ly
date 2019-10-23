@@ -2,6 +2,8 @@
 #include <string.h>
 
 #include "memimage.h"
+#include "wavutil.h"
+
 extern "C" { 
 #include "wave_reader.h" 
 }
@@ -16,6 +18,7 @@ MemImageUtil::MemImageUtil()
     dataVec = new uint8_t[DATA_VEC_SIZE];
     memset(dataVec, 0, DATA_VEC_SIZE);
     currentPos = sizeof(MemImage);  // move the write head past the header.
+    memset(mse, 0, sizeof(int) * MemImage::NUM_FILES);
 }
 
 
@@ -35,8 +38,9 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size)
+void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples, int _mse)
 {
+    assert(size * 2 == nSamples || size * 2 - 1 == nSamples);
     assert(currentDir >= 0);
     currentFile++;
     assert(currentFile < MemImage::NUM_FILES);
@@ -46,7 +50,10 @@ void MemImageUtil::addFile(const char* name, void* data, int size)
     strncpy(image->file[currentFile].name, name, MemUnit::NAME_LEN);
     image->file[currentFile].offset = currentPos;
     image->file[currentFile].size = size;
-
+    if (size * 2 - 1 == nSamples) {
+        image->file[currentFile].shortSample = 1;
+    }
+    mse[currentFile] = _mse;
     memcpy(dataVec + currentPos, data, size);
     currentPos += size;
 }
@@ -93,67 +100,21 @@ void MemImageUtil::dumpConsole()
             printf("Dir: %s\n", dirName);
              
             for (unsigned f = 0; f < image->dir[d].size; ++f) {
-                const MemUnit& fileUnit = image->file[image->dir[d].offset + f];
+                int index = image->dir[d].offset + f;
+                const MemUnit& fileUnit = image->file[index];
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                const wav12::Wav12Header* header =
-                    (const wav12::Wav12Header*)(dataVec + fileUnit.offset);
-
-                // Verify!
-                bool okay = true;
-                {
-                    std::string path = std::string(dirName) 
-                        + "/" + std::string(fileName) + std::string(".wav");
-
-                    int16_t* wav = 0;
-                    int nSamples = 0;
-                    {
-                        wave_reader_error error = WR_NO_ERROR;
-                        wave_reader* wr = wave_reader_open(path.c_str(), &error);
-                        assert(error == WR_NO_ERROR);
-                        nSamples = wave_reader_get_num_samples(wr);
-                        wav = new int16_t[nSamples];
-                        wave_reader_get_samples(wr, nSamples, wav);
-                        wave_reader_close(wr);
-                    }
-
-                    assert(fileUnit.size == header->lenInBytes + sizeof(wav12::Wav12Header));
-                    assert(nSamples == header->nSamples);
-                    
-                    wav12::MemStream memStream(dataVec, DATA_VEC_SIZE);
-                    memStream.set(fileUnit.offset + sizeof(wav12::Wav12Header), header->lenInBytes);
-                    
-                    static const int STEREO_SAMPLES = 256;
-                   // int32_t stereo[STEREO_SAMPLES * 2];
-
-/*                    wav12::ExpanderV expander;
-                    expander.init(&memStream);
-                    for (int i = 0; i < nSamples; i += STEREO_SAMPLES) {
-                        int n = miMin(STEREO_SAMPLES, nSamples - i);
-                        expander.expand(stereo, n, 1, false);
-
-                        for (int j = 0; j < n; ++j) {
-                            int diff = abs(stereo[j * 2] - wav[i + j]);
-                            if (diff >= 16) {
-                                assert(false);
-                                okay = false;
-                            }
-                        }
-                    }
-                    */
-                    delete[] wav;
-                }
-
-                printf("   %8s at %8d size=%6d (%3dk) ratio=%5.1f %s\n", 
-                    fileName, 
+                printf("   %8s at %8d size=%6d (%3dk) shrt=%d ratio=%5.1f mse=%8d\n",
+                    fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
-                    100.0f * float(header->lenInBytes) / (float)(header->nSamples*2),
-                    okay ? "ok" : "ERROR" );
+                    fileUnit.shortSample,
+                    100.0f * float(fileUnit.size) / (float)(fileUnit.numSamples() * 2),
+                    mse[index]);
 
-                totalUncompressed += header->nSamples * 2;
-                totalSize += header->lenInBytes;
-                dirTotal += header->lenInBytes;
+                totalUncompressed += fileUnit.numSamples() * 2;
+                totalSize += fileUnit.size;
+                dirTotal += fileUnit.size;
             }
         }
         if (dirTotal)
