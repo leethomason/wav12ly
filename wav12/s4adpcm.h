@@ -56,15 +56,22 @@ public:
         }
     };
 
-    static void encode(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
-    static void decode(const uint8_t* compressed, 
+    static void encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
+    static void decode4(const uint8_t* compressed, 
         int32_t nSamples,  
+        int volume,         // 0-256 (higher values can overflow)
+        bool add,           // if true, add to the 'data' buffer, else write to it
+        S4ADPCM_INT* samples, State* state);
+
+    static void encode8(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
+    static void decode8(const uint8_t* compressed,
+        int32_t nSamples,
         int volume,         // 0-256 (higher values can overflow)
         bool add,           // if true, add to the 'data' buffer, else write to it
         S4ADPCM_INT* samples, State* state);
 
 private:
     static const int TABLE_SIZE = 8;
-    static const int DELTA_TABLE[TABLE_SIZE];
-
+    static const int DELTA_TABLE_4[TABLE_SIZE];
+    static const int DELTA_TABLE_8[TABLE_SIZE];
 };

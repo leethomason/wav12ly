@@ -35,7 +35,7 @@ namespace wav12 {
         // Returns the number of samples it could expand. nTarget should be even,
         // unless it is the last sample (which can be odd if it uses up the
         // entire track.)
-        int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add);
+        int expand(int32_t* target, uint32_t nTarget, int32_t volume, bool add, bool use8Bit);
         void rewind();
         bool done() const { return m_stream->done(); }
 
@@ -53,7 +53,9 @@ namespace wav12 {
         // Codec 4/4-bit is a kind of ADPCM. (Although simpler than the standard algorithm.)
         // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
         // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
-        static void compress(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+
+        static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
 
     private:
         uint8_t m_buffer[BUFFER_SIZE];

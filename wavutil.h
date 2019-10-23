@@ -3,7 +3,10 @@
 #include <stdint.h>
 #include "./wav12/wav12stream.h"
 
-int32_t* compressAndTest(const int16_t* samples, int nSamples, uint8_t** compressed, uint32_t* nCompressed, int* mse);
+int32_t* compressAndTest(const int16_t* samples, int nSamples, 
+    bool use8Bit,
+    uint8_t** compressed, uint32_t* nCompressed, 
+    int* mse);
 
 class MemStream : public wav12::IStream
 {

@@ -38,9 +38,8 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples, int _mse)
+void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples, bool use8Bit, int _mse)
 {
-    assert(size * 2 == nSamples || size * 2 - 1 == nSamples);
     assert(currentDir >= 0);
     currentFile++;
     assert(currentFile < MemImage::NUM_FILES);
@@ -50,7 +49,12 @@ void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples,
     strncpy(image->file[currentFile].name, name, MemUnit::NAME_LEN);
     image->file[currentFile].offset = currentPos;
     image->file[currentFile].size = size;
-    if (size * 2 - 1 == nSamples) {
+    if (use8Bit) {
+        image->file[currentFile].shortSample = 0;
+        image->file[currentFile].is8Bit = 1;
+    }
+    else {
+        assert(size * 2 == nSamples || size * 2 - 1 == nSamples);
         image->file[currentFile].shortSample = 1;
     }
     mse[currentFile] = _mse;
@@ -105,11 +109,12 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) shrt=%d ratio=%5.1f mse=%8d\n",
+                printf("   %8s at %8d size=%6d (%3dk) shrt=%d ratio=%5.1f use8Bit=%d mse=%8d\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     fileUnit.shortSample,
                     100.0f * float(fileUnit.size) / (float)(fileUnit.numSamples() * 2),
+                    fileUnit.is8Bit,
                     mse[index]);
 
                 totalUncompressed += fileUnit.numSamples() * 2;
