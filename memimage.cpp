@@ -7,7 +7,7 @@
 extern "C" { 
 #include "wave_reader.h" 
 }
-#include "./wav12/compress.h"
+#include "./wav12/expander.h"
 
 template<class T>
 T miMin(T a, T b) { return (a < b) ? a : b; }
@@ -38,7 +38,7 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples, bool use8Bit, int _mse)
+void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit, int _mse)
 {
     assert(currentDir >= 0);
     currentFile++;
@@ -50,12 +50,7 @@ void MemImageUtil::addFile(const char* name, void* data, int size, int nSamples,
     image->file[currentFile].offset = currentPos;
     image->file[currentFile].size = size;
     if (use8Bit) {
-        image->file[currentFile].shortSample = 0;
         image->file[currentFile].is8Bit = 1;
-    }
-    else {
-        assert(size * 2 == nSamples || size * 2 - 1 == nSamples);
-        image->file[currentFile].shortSample = 1;
     }
     mse[currentFile] = _mse;
     memcpy(dataVec + currentPos, data, size);
@@ -109,10 +104,9 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) shrt=%d ratio=%5.1f use8Bit=%d mse=%8d\n",
+                printf("   %8s at %8d size=%6d (%3dk) ratio=%5.1f use8Bit=%d mse=%8d\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
-                    fileUnit.shortSample,
                     100.0f * float(fileUnit.size) / (float)(fileUnit.numSamples() * 2),
                     fileUnit.is8Bit,
                     mse[index]);

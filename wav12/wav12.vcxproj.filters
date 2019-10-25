@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="compress.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\wave_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -39,12 +36,12 @@
     <ClInclude Include="..\wavutil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="expander.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\wave_reader.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="compress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\tinyxml2.cpp">
@@ -63,6 +60,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\wavutil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="expander.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

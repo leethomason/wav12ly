@@ -1,5 +1,5 @@
 #include "wavutil.h"
-#include "./wav12/compress.h"
+#include "./wav12/expander.h"
 
 #include <assert.h>
 #include <string.h>

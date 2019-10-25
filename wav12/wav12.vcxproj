@@ -153,7 +153,7 @@
     <ClInclude Include="..\wave_reader.h" />
     <ClInclude Include="..\wave_writer.h" />
     <ClInclude Include="..\wavutil.h" />
-    <ClInclude Include="compress.h" />
+    <ClInclude Include="expander.h" />
     <ClInclude Include="s4adpcm.h" />
     <ClInclude Include="wav12stream.h" />
   </ItemGroup>
@@ -164,7 +164,7 @@
     <ClCompile Include="..\wave_reader.c" />
     <ClCompile Include="..\wave_writer.c" />
     <ClCompile Include="..\wavutil.cpp" />
-    <ClCompile Include="compress.cpp" />
+    <ClCompile Include="expander.cpp" />
     <ClCompile Include="s4adpcm.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

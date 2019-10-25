@@ -9,12 +9,11 @@ struct MemUnit {
 
     char name[NAME_LEN];   // NOT null terminated, but 0-filled.
     uint32_t offset;
-    uint32_t size : 24;
-    uint32_t shortSample : 1;
+    uint32_t size : 24;     // if needed, an extra sample is added so that size==nSamples
     uint32_t is8Bit : 1;
-    uint32_t reserve : 6;
+    uint32_t reserve : 7;
 
-    uint32_t numSamples() const { return is8Bit ? size : size * 2 - shortSample; }
+    uint32_t numSamples() const { return is8Bit ? size : size * 2; }
 };
 
 static_assert(sizeof(MemUnit) == 16, "16 byte MemUnit");
@@ -36,7 +35,7 @@ public:
 
     void addDir(const char* name);
     // MSE just used for debugging output.
-    void addFile(const char* name, void* data, int size, int nSamples, bool use8Bit, int mse);
+    void addFile(const char* name, void* data, int size, bool use8Bit, int mse);
     void dumpConsole();
 
     void write(const char* name);
