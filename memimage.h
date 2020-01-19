@@ -23,8 +23,7 @@ struct MemImage {
     static const int NUM_FILES = 60;
     static const int NUM = NUM_DIR + NUM_FILES;
 
-    MemUnit dir[NUM_DIR];
-    MemUnit file[NUM_FILES];
+    MemUnit unit[NUM];
 };
 
 class MemImageUtil
@@ -45,8 +44,8 @@ private:
     static const int DATA_VEC_SIZE = 4 * 1024 * 1024;   // 4 meg for overflow, experimentation
     uint32_t currentPos = 0;
     uint8_t* dataVec = 0;
-    int currentDir = -1;
-    int currentFile = -1;
+    int numDir = 0;
+    int numFile = 0;
     int mse[MemImage::NUM_FILES];
 };
 

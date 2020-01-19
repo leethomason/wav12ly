@@ -30,31 +30,32 @@ MemImageUtil::~MemImageUtil()
 
 void MemImageUtil::addDir(const char* name)
 {
-    currentDir++;
-    assert(currentDir < MemImage::NUM_DIR);
+    assert(numDir < MemImage::NUM_DIR);
     MemImage* image = (MemImage*)dataVec;
-    strncpy(image->dir[currentDir].name, name, MemUnit::NAME_LEN);
-    image->dir[currentDir].offset = currentFile + 1;
+    strncpy(image->unit[numDir].name, name, MemUnit::NAME_LEN);
+    image->unit[numDir].offset = MemImage::NUM_DIR + numFile;
+    numDir++;
 }
 
 
 void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit, int _mse)
-{
-    assert(currentDir >= 0);
-    currentFile++;
-    assert(currentFile < MemImage::NUM_FILES);
-    
+{   
+    assert(numDir > 0);
+    assert(numFile < MemImage::NUM_FILES);
+
     MemImage* image = (MemImage*)dataVec;
-    image->dir[currentDir].size += 1;
-    strncpy(image->file[currentFile].name, name, MemUnit::NAME_LEN);
-    image->file[currentFile].offset = currentPos;
-    image->file[currentFile].size = size;
+    image->unit[numDir-1].size += 1;
+    int index = MemImage::NUM_DIR + numFile;
+    strncpy(image->unit[index].name, name, MemUnit::NAME_LEN);
+    image->unit[index].offset = currentPos;
+    image->unit[index].size = size;
     if (use8Bit) {
-        image->file[currentFile].is8Bit = 1;
+        image->unit[index].is8Bit = 1;
     }
-    mse[currentFile] = _mse;
+    mse[numFile] = _mse;
     memcpy(dataVec + currentPos, data, size);
     currentPos += size;
+    numFile++;
 }
 
 
@@ -89,18 +90,22 @@ void MemImageUtil::dumpConsole()
 {
     uint32_t totalUncompressed = 0, totalSize = 0;
     const MemImage* image = (const MemImage*)dataVec;
+    int64_t totalMSE4 = 0;
+    int64_t totalMSE8 = 0;
+    int count4 = 0;
+    int count8 = 0;
 
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
 
-        if (image->dir[d].name[0]) {
+        if (image->unit[d].name[0]) {
             char dirName[9] = { 0 };
-            strncpy(dirName, image->dir[d].name, 8);
+            strncpy(dirName, image->unit[d].name, 8);
             printf("Dir: %s\n", dirName);
-             
-            for (unsigned f = 0; f < image->dir[d].size; ++f) {
-                int index = image->dir[d].offset + f;
-                const MemUnit& fileUnit = image->file[index];
+
+            for (unsigned f = 0; f < image->unit[d].size; ++f) {
+                int index = image->unit[d].offset + f;
+                const MemUnit& fileUnit = image->unit[index];
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
@@ -109,8 +114,16 @@ void MemImageUtil::dumpConsole()
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     100.0f * float(fileUnit.size) / (float)(fileUnit.numSamples() * 2),
                     fileUnit.is8Bit,
-                    mse[index]);
+                    mse[index - MemImage::NUM_DIR]);
 
+                if (fileUnit.is8Bit) {
+                    totalMSE8 += mse[index - MemImage::NUM_DIR];
+                    count8++;
+                }
+                else {
+                    totalMSE4 += mse[index - MemImage::NUM_DIR];
+                    ++count4;
+                }
                 totalUncompressed += fileUnit.numSamples() * 2;
                 totalSize += fileUnit.size;
                 dirTotal += fileUnit.size;
@@ -121,6 +134,10 @@ void MemImageUtil::dumpConsole()
     }
     size_t totalImageSize = sizeof(MemImage) + currentPos;
     printf("Overall ratio=%5.2f\n", (float)totalSize / (float)(totalUncompressed));
+    if (count4)
+        printf("Ave 4-bit mse=%dK\n", (int)(totalMSE4 / (1000 * count4)));
+    if (count8)
+        printf("Ave 8-bit mse=%dK\n", (int)(totalMSE8 / (1000 * count8)));
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
 }
 
