@@ -7,31 +7,20 @@
 #define ASSERT(x)
 #endif
 
-// 8 bit version:
-// no bias: 4527
-// bias:    4448
-// fiati    mse=324     -1 0 1 2 3 3 4 4
-// poweron  mse=1027451 -1 0 1 2 3 3 3 4
-// hum      mse=62      -1 0 1 2 3 3 4 4
-// tuned: 4447
-
-// 4 bit ave 
-//  no bias:    514K
-//  with bias:  410K
-//  bias fixes, limiting: 166K (!!)
-
 #ifndef S4ADPCM_OPT
 const
 #endif
 int S4ADPCM::DELTA_TABLE_4[TABLE_SIZE] = {
-    -1, 0, 0, 0, 1, 1, 2, 3
+    // The last entry is used for the special delta=8 case
+    -1, 0, 0, 0, 1, 1, 1, 2, 3
 };
 
 #ifndef S4ADPCM_OPT
 const
 #endif
 int S4ADPCM::DELTA_TABLE_8[TABLE_SIZE] = {
-    -1, 0, 1, 2, 3, 3, 4, 4
+    // 8-bit version doesn't use the last entry
+    -1, 0, 1, 2, 3, 3, 4, 4, 4  
 };
 
 void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state)
@@ -54,19 +43,43 @@ void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, St
         // Error always positive, delta always positive.
         int bias = ((1 << state->shift) - 1)/2;
         int delta = (error + bias) >> state->shift;
-        if (delta > 7) delta = 7;
+
+        int maxDelta = 7;
+        if (state->sign == sign)
+            maxDelta = 8;
+        if (delta > maxDelta)
+            delta = maxDelta;
 
         if ((positiveGuess + (delta << state->shift)) > SHRT_MAX) {
             delta = (SHRT_MAX - positiveGuess) >> state->shift;
-            if (delta > 7) delta = 7;
+            if (delta > maxDelta) 
+                delta = maxDelta;
         }
 
-        if (state->high) {
-            *target++ |= (delta | sign) << 4;
+        if (positiveGuess + (delta << state->shift) > SHRT_MAX) {
+            ASSERT(false);
+        }
+
+        if (delta == 8) {
+            if (state->high)
+                *target++ |= (8 << 4);
+            else
+                *target = 8;
+        }
+        else if (delta == 0) {
+            if (state->high)
+                *target++ |= 0;
+            else
+                *target = 0;
         }
         else {
-            *target = (delta | sign);
+            state->sign = sign;
+            if (state->high)
+                *target++ |= (delta | sign) << 4;
+            else
+                *target = (delta | sign);
         }
+
         state->high = !state->high;
 
         int p = guess + (delta << state->shift) * (sign ? -1 : 1);
@@ -123,19 +136,33 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
     int volume, bool add, int32_t* out, State* state)
 {
     for (int32_t i = 0; i < nSamples; ++i) {
-        uint8_t delta = 0;
+        uint8_t data = 0;
         if (state->high) {
-            delta = *p >> 4;
+            data = *p >> 4;
             p++;
         }
         else {
-            delta = *p & 0xf;
+            data = *p & 0xf;
         }
-        int guess = state->guess();
 
-        uint8_t sign = delta & 0x8;
-        delta &= 0x7;
+        uint8_t sign = 0;
+        int delta = 0;
+
+        if (data == 8) {
+            sign = state->sign;
+            delta = 8;
+        }
+        else if (data == 0) {
+            sign = state->sign;
+            delta = 0;
+        }
+        else {
+            sign = data & 8;
+            delta = data & 0x7;
+        }
+
         int value = 0;
+        int guess = state->guess();
         if (sign) {
             value = guess - (delta << state->shift);
         }
@@ -156,6 +183,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
         }
         out += 2;
 
+        state->sign = sign;
         state->shift += DELTA_TABLE_4[delta];
         if (state->shift < 0) state->shift = 0;
         if (state->shift > SHIFT_LIMIT_4) state->shift = SHIFT_LIMIT_4;
