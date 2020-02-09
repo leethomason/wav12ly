@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <string.h>
+#include <string>
 
 #include "memimage.h"
 extern "C" { 
