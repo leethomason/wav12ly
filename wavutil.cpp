@@ -60,7 +60,7 @@ int32_t* compressAndTest(const int16_t* samples, int nSamples,
 
     for (int i = 0; i < nSamples; i += STEP) {
         int n = wav12Min(STEP, nSamples - i);
-        expander.expand(stereoData + i * 2, n, VOLUME, false, use8Bit);
+        expander.expand(stereoData + i * 2, n, VOLUME, false, use8Bit, true);
     }
 
     int64_t err = 0;

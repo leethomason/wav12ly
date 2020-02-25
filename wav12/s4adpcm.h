@@ -35,6 +35,8 @@ public:
         int shift = 0;
         int sign = 0;   // 0 or 8
         bool high = false;
+        int volumeShifted = 0;
+        int volumeTarget = 0;
 
         int guess() const {
             int g = 2 * prev1 - prev2;
@@ -66,6 +68,16 @@ private:
     static const int SHIFT_LIMIT_4 = 12;
     static const int SHIFT_LIMIT_8 = 8;
     static const int TABLE_SIZE = 9;
+    static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
+
+    inline static int32_t sat_add(int32_t x, int32_t y)
+    {
+        int32_t sum = (unsigned int)x + y;
+        const static int32_t w = (sizeof(int) << 3) - 1;
+        int32_t mask = (~(x ^ y) & (x ^ sum)) >> w;
+        int32_t max_min = (1 << w) ^ (sum >> w);
+        return  (~mask & sum) + (mask & max_min);
+    }
 
 #ifdef S4ADPCM_OPT
 public:
