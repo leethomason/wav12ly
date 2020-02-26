@@ -72,17 +72,16 @@ void MemImageUtil::writeText(const char* name)
     FILE* fp = fopen(name, "w");
 
     fprintf(fp, "%d\n", currentPos);
-    int line = 0;
-    for (uint32_t i = 0; i < currentPos; ++i) {
-        fprintf(fp, "%02x", dataVec[i]);
-        line++;
-        if (line == 64) {
-            fprintf(fp, "\n");
-            line = 0;
-        }
-    }
-    if (line) {
-        fprintf(fp, "\n");
+
+    static const int STEP = 256;
+    char cBuf[STEP*2];
+
+    for (uint32_t i = 0; i < currentPos; i += STEP) {
+        int n = STEP;
+        if (i + STEP > currentPos)
+            n = currentPos - i;
+        encodeBase64(dataVec + i, n, cBuf, true);
+        fprintf(fp, "%s\n", cBuf);
     }
     fclose(fp);
 }
@@ -133,12 +132,19 @@ void MemImageUtil::dumpConsole()
         if (dirTotal)
             printf("  Dir total=%dk\n", dirTotal / 1024);
     }
+
+    uint32_t dirHash = 0;
+    for (int i = 0; i < MemImage::NUM_DIR; i++) {
+        dirHash = hash32(image->unit[i].name, image->unit[i].name + MemUnit::NAME_LEN, dirHash);
+    }
+
     size_t totalImageSize = sizeof(MemImage) + currentPos;
     printf("Overall ratio=%5.2f\n", (float)totalSize / (float)(totalUncompressed));
     if (count4)
-        printf("Ave 4-bit mse=%dK\n", (int)(totalMSE4 / (1000 * count4)));
+        printf("Ave 4-bit mse=%dK\n", (int)(totalMSE4 / int64_t(1000 * count4)));
     if (count8)
-        printf("Ave 8-bit mse=%dK\n", (int)(totalMSE8 / (1000 * count8)));
+        printf("Ave 8-bit mse=%dK\n", (int)(totalMSE8 / int64_t(1000 * count8)));
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
+    printf("Directory name hash=%x\n", dirHash);
 }
 

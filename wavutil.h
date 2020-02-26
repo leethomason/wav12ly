@@ -26,4 +26,10 @@ protected:
     uint32_t m_pos = 0;
 };
 
+void encodeBase64(const uint8_t* bytes, int nBytes, char* target, bool writeNull);
+void decodeBase64(const char* src, int nBytes, uint8_t* dst);
+uint32_t hash32(const char* v, const char* end, uint32_t h = 0);
+
+
+
 

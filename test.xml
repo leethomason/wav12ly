@@ -3,8 +3,6 @@
   <Directory path="bespin2">
     <File path="blaster.wav" />
     <File path="blaster2.wav" />
-    <File path="blaster3.wav" />
-    <File path="blaster4.wav" />
     <File path="clash1.wav" compression="8"/>
     <File path="clash2.wav" compression="8"/>
     <File path="clash3.wav" />
@@ -14,7 +12,6 @@
     <File path="swing1.wav" />
     <File path="swing2.wav" />
     <File path="swing3.wav" />
-    <File path="swing4.wav" />
-    <File path="fiati.wav"/>
+    <File path="fiati22.wav"/>
   </Directory>
 </Image>
