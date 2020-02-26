@@ -157,13 +157,11 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
             data = *p & 0xf;
         }
 
-        if (data == 8) {
+        if (data == 8 || data == 0) {
+            // The data == 8/0 case does the same thing,
+            // and seems to get missed by the optimizer.
             sign = state->sign;
-            delta = 8;
-        }
-        else if (data == 0) {
-            sign = state->sign;
-            delta = 0;
+            delta = data;
         }
         else {
             sign = data & 8;
@@ -186,13 +184,14 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
         else if (state->volumeShifted > state->volumeTarget)
             state->volumeShifted -= VOLUME_EASING;
 
+        // max: SHRT_MAX * 256 * 256
+        //      32767 * 256 * 256 = 2147418112
+        //              INT32_MAX = 2147483647
         int32_t s = value * state->volumeShifted;
-        if (add) {
+        if (add)
             out[0] = out[1] = sat_add(s, out[0]);
-        }
-        else {
+        else
             out[0] = out[1] = s;
-        }
         out += 2;
 
         state->sign = sign;

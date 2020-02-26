@@ -72,11 +72,17 @@ private:
 
     inline static int32_t sat_add(int32_t x, int32_t y)
     {
-        int32_t sum = (unsigned int)x + y;
-        const static int32_t w = (sizeof(int) << 3) - 1;
-        int32_t mask = (~(x ^ y) & (x ^ sum)) >> w;
-        int32_t max_min = (1 << w) ^ (sum >> w);
-        return  (~mask & sum) + (mask & max_min);
+        int32_t sum = (uint32_t)x + y;
+        const static int32_t BIT_SHIFT = sizeof(int32_t) * 8 - 1;
+        // This is a wonderfully clever way of saying:
+        // if (sign(x) != sign(y)) || (sign(x) == sign(sum)
+        //      mask = 0;    // we didn't overflow
+        // else
+        //      mask = 1111s // we did, and create an all-1 mask with sign extension
+        // I didn't think of this. Wish I had.
+        int32_t mask = (~(x ^ y) & (x ^ sum)) >> BIT_SHIFT;
+        int32_t maxOrMin = (1 << BIT_SHIFT) ^ (sum >> BIT_SHIFT);
+        return  (~mask & sum) + (mask & maxOrMin);
     }
 
 #ifdef S4ADPCM_OPT
