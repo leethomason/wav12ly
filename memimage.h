@@ -34,7 +34,7 @@ public:
 
     void addDir(const char* name);
     // MSE just used for debugging output.
-    void addFile(const char* name, void* data, int size, bool use8Bit, int mse);
+    void addFile(const char* name, void* data, int size, bool use8Bit, int64_t e12);
     void dumpConsole();
 
     void write(const char* name);
@@ -46,7 +46,7 @@ private:
     uint8_t* dataVec = 0;
     int numDir = 0;
     int numFile = 0;
-    int mse[MemImage::NUM_FILES];
+    int64_t e12[MemImage::NUM_FILES];
 };
 
 #endif // MEMORY_IMAGE_INCLUDE

@@ -21,7 +21,7 @@ int S4ADPCM::DELTA_TABLE_8[TABLE_SIZE] = {
     -1, 0, 1, 2, 3, 3, 4, 4, 4  
 };
 
-void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state)
+void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, int64_t* e2)
 {
     for (int i = 0; i < nSamples; ++i) {
         int value = data[i];
@@ -88,6 +88,9 @@ void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, St
 #endif
         state->push(p);
 
+        *e2 += calcError(value, p);
+        assert(*e2 >= 0);    // check for overflow
+
         state->shift += DELTA_TABLE_4[delta];
         if (state->shift < 0) state->shift = 0;
         if (state->shift > SHIFT_LIMIT_4) state->shift = SHIFT_LIMIT_4;
@@ -95,7 +98,7 @@ void S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, St
 }
 
 
-void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, State* state)
+void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, int64_t* e2)
 {
     for (int i = 0; i < nSamples; ++i) {
         int value = data[i];
@@ -128,6 +131,9 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
 
         int p = guess + (delta << state->shift) * (sign ? -1 : 1);
         state->push(p);
+
+        *e2 += calcError(value, p);
+        assert(*e2 >= 0);    // check for overflow
 
         state->shift += DELTA_TABLE_8[delta >> 4];
         if (state->shift < 0) state->shift = 0;
@@ -202,7 +208,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
     }
 }
 
-int S4ADPCM::encode4k(const int16_t* data, int32_t nSamples, uint8_t* target, State* state)
+int S4ADPCM::encode4k(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, int64_t* e2)
 {
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
@@ -240,13 +246,18 @@ int S4ADPCM::encode4k(const int16_t* data, int32_t nSamples, uint8_t* target, St
 #ifdef _MSC_VER
         ASSERT(p >= SHRT_MIN && p <= SHRT_MAX);
 #endif
+
         state->push(p);
+
+        *e2 += calcError(value, p);
+        assert(*e2 >= 0);    // check for overflow
+
         state->shift += DELTA_TABLE_4[delta >= 0 ? delta : -delta];
         if (state->shift < 0) state->shift = 0;
         if (state->shift > SHIFT_LIMIT_4) state->shift = SHIFT_LIMIT_4;
     }
     if (state->high) target++;
-    return target - start;
+    return int(target - start);
 }
 
 void S4ADPCM::decode4k(const uint8_t* p, int32_t nSamples,

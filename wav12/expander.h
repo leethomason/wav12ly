@@ -56,16 +56,16 @@ namespace wav12 {
         // Codec 4/4-bit is a kind of ADPCM. (Although simpler than the standard algorithm.)
         // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
         // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
-        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
-        static void compress4k(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
-        static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
+        static void compress4k(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
+        static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
 
-        static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
+        static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared)
         {
             switch (codec) {
-            case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed);   break;
-            case Codec::BIT4K: compress4k(data, nSamples, compressed, nCompressed);   break;
-            case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed);   break;
+            case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed, e16squared);   break;
+            case Codec::BIT4K: compress4k(data, nSamples, compressed, nCompressed, e16squared);   break;
+            case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed, e16squared);   break;
             }
         }
 

@@ -50,8 +50,8 @@ public:
         }
     };
 
-    static void encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
-    static int encode4k(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
+    static void encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
+    static int encode4k(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
     static void decode4(const uint8_t* compressed, 
         int32_t nSamples,  
         int volume,         // 0-256 (higher values can overflow)
@@ -63,7 +63,7 @@ public:
         bool add,           // if true, add to the 'data' buffer, else write to it
         int32_t* samples, State* state);
 
-    static void encode8(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
+    static void encode8(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
     static void decode8(const uint8_t* compressed,
         int32_t nSamples,
         int volume,         // 0-256 (higher values can overflow)
@@ -76,6 +76,16 @@ private:
     static const int TABLE_SIZE = 9;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
     static const int KEYFRAME = 16;
+
+    static int64_t calcError(int value, int p) 
+    {
+        // Want this is 12 bit space, so divide by 16
+        value /= 16;
+        p /= 16;
+        int64_t d = int64_t(value) - p;
+        return d * d;
+    }
+
 
     inline static int32_t sat_add(int32_t x, int32_t y)
     {
