@@ -51,8 +51,14 @@ public:
     };
 
     static void encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
+    static int encode4k(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state);
     static void decode4(const uint8_t* compressed, 
         int32_t nSamples,  
+        int volume,         // 0-256 (higher values can overflow)
+        bool add,           // if true, add to the 'data' buffer, else write to it
+        int32_t* samples, State* state);
+    static void decode4k(const uint8_t* compressed,
+        int32_t nSamples,
         int volume,         // 0-256 (higher values can overflow)
         bool add,           // if true, add to the 'data' buffer, else write to it
         int32_t* samples, State* state);
@@ -69,6 +75,7 @@ private:
     static const int SHIFT_LIMIT_8 = 8;
     static const int TABLE_SIZE = 9;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
+    static const int KEYFRAME = 16;
 
     inline static int32_t sat_add(int32_t x, int32_t y)
     {

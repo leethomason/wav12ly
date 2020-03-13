@@ -2,9 +2,10 @@
 
 #include <stdint.h>
 #include "./wav12/wav12stream.h"
+#include "./wav12/expander.h"
 
 int32_t* compressAndTest(const int16_t* samples, int nSamples, 
-    bool use8Bit,
+    wav12::ExpanderAD4::Codec codec,
     uint8_t** compressed, uint32_t* nCompressed, 
     int* mse);
 

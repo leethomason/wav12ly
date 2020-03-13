@@ -26,6 +26,11 @@ namespace wav12 {
     {
     public:
         static const int BUFFER_SIZE = 128;
+        enum class Codec {
+            BIT4,
+            BIT4K,
+            BIT8
+        };
 
         ExpanderAD4() {}
         void init(IStream* stream);
@@ -33,7 +38,7 @@ namespace wav12 {
         // Returns the number of samples it could expand. nSamples should be even,
         // unless it is the last sample (which can be odd if it uses up the
         // entire track.)
-        int expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add, bool use8Bit, bool overrideEasing);
+        int expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add, Codec codec, bool overrideEasing);
         void rewind();
         bool done() const { return m_stream->done(); }
 
@@ -52,8 +57,47 @@ namespace wav12 {
         // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
         // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
         static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
-
+        static void compress4k(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
         static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed);
+
+        static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed)
+        {
+            switch (codec) {
+            case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed);   break;
+            case Codec::BIT4K: compress4k(data, nSamples, compressed, nCompressed);   break;
+            case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed);   break;
+            }
+        }
+
+        static int samplesToBytes(int n, Codec codec) {
+            switch (codec) {
+            case Codec::BIT4:   return (n + 1) / 2;
+            case Codec::BIT4K:  return (n + 1) / 2;
+            case Codec::BIT8:   return n;
+            }
+            assert(false);
+            return 0;
+        }
+
+        static int bytesToSamples(int b, Codec codec) {
+            switch (codec) {
+            case Codec::BIT4:   return b * 2;
+            case Codec::BIT4K:  return b * 2;
+            case Codec::BIT8:   return b;
+            }
+            assert(false);
+            return 0;
+        }
+
+        static int nSamplesInBytes(int nBytes, Codec codec) {
+            switch (codec) {
+            case Codec::BIT4:   return nBytes * 2;
+            case Codec::BIT4K:  return nBytes * 2;
+            case Codec::BIT8:   return nBytes;
+            }
+            assert(false);
+            return 0;
+        }
 
     private:
         static uint8_t m_buffer[BUFFER_SIZE];
