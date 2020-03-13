@@ -41,7 +41,7 @@ public:
     void writeText(const char* name);
 
 private:
-    static const int DATA_VEC_SIZE = 4 * 1024 * 1024;   // 4 meg for overflow, experimentation
+    static const int DATA_VEC_SIZE = 16 * 1024 * 1024;
     uint32_t currentPos = 0;
     uint8_t* dataVec = 0;
     int numDir = 0;

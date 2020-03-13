@@ -7,6 +7,7 @@
     <File path="clash2.wav" compression="8"/>
     <File path="clash3.wav" />
     <File path="hum.wav" />
+    <File path="hum8.wav" compression="8"/>
     <File path="poweron.wav" compression="4"/>
     <File path="poweroff.wav" compression="8"/>
     <File path="swing1.wav" />
