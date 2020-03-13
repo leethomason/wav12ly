@@ -28,7 +28,6 @@ namespace wav12 {
         static const int BUFFER_SIZE = 128;
         enum class Codec {
             BIT4,
-            BIT4K,
             BIT8
         };
 
@@ -57,14 +56,12 @@ namespace wav12 {
         // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
         // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
         static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
-        static void compress4k(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
         static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
 
         static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared)
         {
             switch (codec) {
             case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed, e16squared);   break;
-            case Codec::BIT4K: compress4k(data, nSamples, compressed, nCompressed, e16squared);   break;
             case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed, e16squared);   break;
             }
         }
@@ -72,7 +69,6 @@ namespace wav12 {
         static int samplesToBytes(int n, Codec codec) {
             switch (codec) {
             case Codec::BIT4:   return (n + 1) / 2;
-            case Codec::BIT4K:  return (n + 1) / 2;
             case Codec::BIT8:   return n;
             }
             assert(false);
@@ -82,7 +78,6 @@ namespace wav12 {
         static int bytesToSamples(int b, Codec codec) {
             switch (codec) {
             case Codec::BIT4:   return b * 2;
-            case Codec::BIT4K:  return b * 2;
             case Codec::BIT8:   return b;
             }
             assert(false);
@@ -92,7 +87,6 @@ namespace wav12 {
         static int nSamplesInBytes(int nBytes, Codec codec) {
             switch (codec) {
             case Codec::BIT4:   return nBytes * 2;
-            case Codec::BIT4K:  return nBytes * 2;
             case Codec::BIT8:   return nBytes;
             }
             assert(false);

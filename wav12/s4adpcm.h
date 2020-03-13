@@ -33,7 +33,6 @@ public:
         int prev2 = 0;
         int prev1 = 0;
         int shift = 0;
-        int sign = 0;   // 0 or 8
         bool high = false;
         int volumeShifted = 0;
         int volumeTarget = 0;
@@ -50,14 +49,8 @@ public:
         }
     };
 
-    static void encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
-    static int encode4k(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
-    static void decode4(const uint8_t* compressed, 
-        int32_t nSamples,  
-        int volume,         // 0-256 (higher values can overflow)
-        bool add,           // if true, add to the 'data' buffer, else write to it
-        int32_t* samples, State* state);
-    static void decode4k(const uint8_t* compressed,
+    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, int64_t* e16squared);
+    static void decode4(const uint8_t* compressed,
         int32_t nSamples,
         int volume,         // 0-256 (higher values can overflow)
         bool add,           // if true, add to the 'data' buffer, else write to it

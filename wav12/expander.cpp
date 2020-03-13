@@ -20,23 +20,13 @@ void ExpanderAD4::rewind()
     m_stream->rewind();
 }
 
-void ExpanderAD4::compress4(const int16_t* data, int32_t nSamples, 
-    uint8_t** compressed, uint32_t* nCompressed, int64_t* error)
-{
-    *nCompressed = (nSamples + 1) / 2;
-    *compressed = new uint8_t[nSamples];
-
-    S4ADPCM::State state;
-    S4ADPCM::encode4(data, nSamples, *compressed, &state, error);
-}
-
-void ExpanderAD4::compress4k(const int16_t* data, int32_t nSamples,
+void ExpanderAD4::compress4(const int16_t* data, int32_t nSamples,
     uint8_t** compressed, uint32_t* nCompressed, int64_t* error)
 {
     *compressed = new uint8_t[nSamples];
 
     S4ADPCM::State state;
-    *nCompressed = S4ADPCM::encode4k(data, nSamples, *compressed, &state, error);
+    *nCompressed = S4ADPCM::encode4(data, nSamples, *compressed, &state, error);
 }
 
 void ExpanderAD4::compress8(const int16_t* data, int32_t nSamples,
@@ -74,8 +64,6 @@ int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool
         if (bytesFetched) {
             if (codec == Codec::BIT8)
                 S4ADPCM::decode8(m_buffer, samplesFetched, volume, add, target + n * 2, &m_state);
-            else if (codec == Codec::BIT4K)
-                S4ADPCM::decode4k(m_buffer, samplesFetched, volume, add, target + n * 2, &m_state);
             else
                 S4ADPCM::decode4(m_buffer, samplesFetched, volume, add, target + n * 2, &m_state);
         }
