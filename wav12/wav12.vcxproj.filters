@@ -65,5 +65,8 @@
     <ClCompile Include="expander.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wav12ly.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -63,10 +63,11 @@ public:
         bool add,           // if true, add to the 'data' buffer, else write to it
         int32_t* samples, State* state);
 
+    static const int TABLE_SIZE = 9;
+
 private:
     static const int SHIFT_LIMIT_4 = 12;
     static const int SHIFT_LIMIT_8 = 8;
-    static const int TABLE_SIZE = 9;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
     static const int KEYFRAME = 16;
 
