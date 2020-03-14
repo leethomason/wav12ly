@@ -22,7 +22,7 @@
     How it works:
     Each value is predicted from the previous, based on a simple velocity 
     computation. The delta from that prediction is what is stored in the 
-    compressed data. The value of the delta (-7 to +7) scaled from 0 to 12
+    compressed data. The value of the delta (-8 to +7) scaled from 0 to 12
     bits (State.shift). A large delta will increase the scaling for the
     next sample, a small delta will decrease it, so that the codec is always
     "chasing" the correct scale for the current samples.
@@ -76,7 +76,6 @@ private:
     static const int SHIFT_LIMIT_4 = 12;
     static const int SHIFT_LIMIT_8 = 8;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
-    static const int KEYFRAME = 16;
 
     static int64_t calcError(int value, int p) 
     {
@@ -105,6 +104,6 @@ private:
 
 public:
     static const int N_TABLES = 4;
-    static int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
-    static int DELTA_TABLE_8[N_TABLES][TABLE_SIZE];
+    static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
+    static const int DELTA_TABLE_8[N_TABLES][TABLE_SIZE];
 };

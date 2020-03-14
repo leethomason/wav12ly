@@ -53,23 +53,20 @@ int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool
     uint32_t n = 0;
 
     while(n < nSamples) {
-        int samplesWanted = nSamplesInBytes(BUFFER_SIZE, codec);
-        samplesWanted = wav12Min<int>(samplesWanted, nSamples - n);
+        int samplesWanted = wav12Min<int>(bytesToSamples(BUFFER_SIZE, codec), nSamples - n);
         int bytesWanted = samplesToBytes(samplesWanted, codec);
         uint32_t bytesFetched = m_stream->fetch(m_buffer, bytesWanted);
         uint32_t samplesFetched = bytesToSamples(bytesFetched, codec);
         if (samplesFetched > nSamples - n)
-            samplesFetched = nSamples - n;  // because of the high/low thing.
+            samplesFetched = nSamples - n;  // because 2 samples a byte. The last one can be zero.
 
-        if (bytesFetched) {
-            if (codec == Codec::BIT8)
-                S4ADPCM::decode8(m_buffer, samplesFetched, volume, add, target + n * 2, &m_state, table);
-            else
-                S4ADPCM::decode4(m_buffer, samplesFetched, volume, add, target + n * 2, &m_state, table);
-        }
-        else {
+        if (!bytesFetched)
             break;
-        }
+
+        if (codec == Codec::BIT8)
+            S4ADPCM::decode8(m_buffer, samplesFetched, volume, add, target + intptr_t(n) * 2, &m_state, table);
+        else
+            S4ADPCM::decode4(m_buffer, samplesFetched, volume, add, target + intptr_t(n) * 2, &m_state, table);
         n += samplesFetched;
     }
     return n;

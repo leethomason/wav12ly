@@ -66,6 +66,7 @@ namespace wav12 {
             }
         }
 
+        // Exact; but there can be extra. For 7 samples, 4 bytes are needed, but a nibble is unused.
         static int samplesToBytes(int n, Codec codec) {
             switch (codec) {
             case Codec::BIT4:   return (n + 1) / 2;
@@ -75,19 +76,11 @@ namespace wav12 {
             return 0;
         }
 
+        // Exact; returns the possible number of samples. (Could be one less.)
         static int bytesToSamples(int b, Codec codec) {
             switch (codec) {
             case Codec::BIT4:   return b * 2;
             case Codec::BIT8:   return b;
-            }
-            assert(false);
-            return 0;
-        }
-
-        static int nSamplesInBytes(int nBytes, Codec codec) {
-            switch (codec) {
-            case Codec::BIT4:   return nBytes * 2;
-            case Codec::BIT8:   return nBytes;
             }
             assert(false);
             return 0;

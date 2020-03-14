@@ -5,20 +5,14 @@
 #define ASSERT assert
 #endif
 
-#ifndef S4ADPCM_OPT
-const
-#endif
-int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
+const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
     {-1, 0, 0, 0, 0, 1, 1, 2, 2},
     {-1, 0, 0, 1, 1, 1, 2, 3, 3},
     {-1, 0, 0, 1, 1, 2, 3, 4, 4},
     {-1, -1, 0, 1, 2, 3, 4, 5, 5}
 };
 
-#ifndef S4ADPCM_OPT
-const
-#endif
-int S4ADPCM::DELTA_TABLE_8[N_TABLES][TABLE_SIZE] = {
+const int S4ADPCM::DELTA_TABLE_8[N_TABLES][TABLE_SIZE] = {
     {-1, 0, 1, 2, 3, 3, 3, 3, 4 },
     {-1, 0, 1, 2, 3, 4, 4, 4, 4},
     {-1, 0, 1, 2, 3, 4, 4, 4, 5},
@@ -33,8 +27,9 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
         int error = value - guess;
 
         // Bias up so we round up and down equally.
-        int bias = (((1 << state->shift) - 1) / 2);
-        int delta = (error + bias) >> state->shift;
+        int mult = 1 << state->shift;                
+        int bias = error >= 0 ? mult / 2 : -mult / 2;
+        int delta = (error + bias) / mult;
 
         if (delta > 127) delta = 127;
         if (delta < -128) delta = -128;
@@ -57,9 +52,8 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
         *e2 += calcError(value, p);
         assert(*e2 >= 0);    // check for overflow
 
-        int dTable = (delta >= 0 ? delta : -delta) / 16;
+        int dTable = (delta >= 0 ? delta : -delta) >> 4;
         state->shift += table[dTable];
-
         if (state->shift < 0) state->shift = 0;
         if (state->shift > SHIFT_LIMIT_8) state->shift = SHIFT_LIMIT_8;
     }
@@ -75,8 +69,9 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         int error = value - guess;
 
         // Bias up so we round up and down equally.
-        int bias = (((1 << state->shift) - 1) / 2);
-        int delta = (error + bias) >> state->shift;
+        int mult = 1 << state->shift;
+        int bias = (error >= 0) ? (mult / 2) : -(mult / 2);
+        int delta = (error + bias) / mult;
 
         if (delta > 7) delta = 7;
         if (delta < -8) delta = -8;
@@ -198,7 +193,7 @@ void S4ADPCM::decode8(const uint8_t* p, int32_t nSamples,
         }
         out += 2;
 
-        int dTable = (delta >= 0 ? delta : -delta) / 16;
+        int dTable = (delta >= 0 ? delta : -delta) >> 4;
         state->shift += table[dTable];
         if (state->shift < 0) state->shift = 0;
         if (state->shift > SHIFT_LIMIT_8) state->shift = SHIFT_LIMIT_8;

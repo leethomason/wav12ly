@@ -316,6 +316,7 @@ int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, ExpanderA
 {
     uint8_t* compressed = 0;
     uint32_t nCompressed = 0;
+    *e12 = 0;
     ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, table, e12);
 
     int32_t* stereoData = new int32_t[nSamples * 2];
@@ -395,19 +396,19 @@ bool runTest(wave_reader* wr, int compressBits)
 #else
     int64_t mse = 0;
 
-    int32_t* stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, true);
+    int32_t* stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, true, S4ADPCM::getTable(4, 1));
     saveOut("test4.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("4  bit mse=%lld\n", mse);
+    printf("4  bit error=%10lld\n", mse);
 
-    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, false);
+    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, false, S4ADPCM::getTable(4, 1));
     saveOut("test4Eased.wav", stereoData, nSamples);
     delete[] stereoData;
 
-    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT8, true);
+    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT8, true, S4ADPCM::getTable(8, 1));
     saveOut("test8.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("8  bit mse=%lld\n", mse);
+    printf("8  bit error=%10lld\n", mse);
 
 #endif
     return true;
