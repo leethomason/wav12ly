@@ -5,7 +5,7 @@
 #include "./wav12/expander.h"
 
 int32_t* compressAndTest(const int16_t* samples, int nSamples, 
-    wav12::ExpanderAD4::Codec codec,
+    wav12::ExpanderAD4::Codec codec, int table,
     uint8_t** compressed, uint32_t* nCompressed, 
     int64_t* e12);
 

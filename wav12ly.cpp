@@ -46,14 +46,14 @@ void test_1()
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
     int64_t error = 0;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, &error);
+    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
     ExpanderAD4 expander;
     expander.init(&memStream);
 
-    int decoded = expander.expand(stereo, OUT, 256, false, ExpanderAD4::Codec::BIT4, true);
+    int decoded = expander.expand(stereo, OUT, 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
     assert(decoded == NS + 1);  // rounds up even
 
     for (int i = 0; i < NS; ++i) {
@@ -80,7 +80,7 @@ void test_2()
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
     int64_t error = 0;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, &error);
+    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -88,7 +88,7 @@ void test_2()
     expander.init(&memStream);
 
     for (int i = 0; i < OUT; i += 10) {
-        int decoded = expander.expand(stereo + i * 2, 10, 256, false, ExpanderAD4::Codec::BIT4, true);
+        int decoded = expander.expand(stereo + i * 2, 10, 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
         if (decoded == 0) break;
     }
     for (int i = 0; i < NS; ++i) {
@@ -114,7 +114,7 @@ void basicTest_4()
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
     int64_t error = 0;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, &error);
+    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -123,7 +123,7 @@ void basicTest_4()
 
     static const int STEP = 8;
     for (int i = 0; i < NS; i += STEP) {
-        expander.expand(stereo + i * 2, wav12Min(STEP, NS - i), 256, false, ExpanderAD4::Codec::BIT4, true);
+        expander.expand(stereo + i * 2, wav12Min(STEP, NS - i), 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
     }
     // Convert from 32 bit output at back to 16 bit output.
     for (int i = 0; i < NS; ++i) {
@@ -159,7 +159,7 @@ void basicTest_8()
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
     int64_t error = 0;
-    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, &error);
+    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -168,7 +168,7 @@ void basicTest_8()
 
     static const int STEP = 8;
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, STEP, 256, false, ExpanderAD4::Codec::BIT8, true);
+        i += expander.expand(stereo + i * 2, STEP, 256, false, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
     }
     // Convert from 32 bit output at back to 16 bit output.
     for (int i = 0; i < NS; ++i) {
@@ -204,7 +204,7 @@ void basicTest_8Add()
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
     int64_t error = 0;
-    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, &error);
+    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -212,11 +212,11 @@ void basicTest_8Add()
     expander.init(&memStream);
 
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, 6, 256, false, ExpanderAD4::Codec::BIT8, true);
+        i += expander.expand(stereo + i * 2, 6, 256, false, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
     }
     expander.rewind();
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, 10, 256, true, ExpanderAD4::Codec::BIT8, true);
+        i += expander.expand(stereo + i * 2, 10, 256, true, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
     }
 
     // Convert from 32 bit output at back to 16 bit output.
@@ -306,17 +306,17 @@ int main(int argc, const char* argv[])
     }
 
     printf("Running basic tests on '%s'\n", argv[1]);
-    runTest(wr, 4);
+    runTest(wr, 8);
     wave_reader_close(wr);
     return 0;
 }
 
 
-int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, ExpanderAD4::Codec codec, bool overrideEasing)
+int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, ExpanderAD4::Codec codec, bool overrideEasing, const int* table)
 {
     uint8_t* compressed = 0;
     uint32_t nCompressed = 0;
-    ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, e12);
+    ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, table, e12);
 
     int32_t* stereoData = new int32_t[nSamples * 2];
     MemStream memStream(compressed, nCompressed);
@@ -329,7 +329,7 @@ int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, ExpanderA
 
     for (int i = 0; i < nSamples; i += STEP) {
         // The stream has a cap; so it can fetch as many as possible each time.
-        expander.expand(stereoData + i * 2, wav12Min(STEP, nSamples - i), VOLUME, false, codec, overrideEasing);
+        expander.expand(stereoData + i * 2, wav12Min(STEP, nSamples - i), VOLUME, false, codec, table, overrideEasing);
     }
 
     delete[] compressed;
@@ -366,27 +366,26 @@ bool runTest(wave_reader* wr, int compressBits)
 #ifdef S4ADPCM_OPT
     int64_t bestE = INT64_MAX;
     printf("compression bits=%d\n", compressBits);
+    int deltaTable[S4ADPCM::TABLE_SIZE] = { 0 };
 
-    for (int bits = 0; bits < 256; ++bits) {
+    for (int bits = 0; bits < (1 << S4ADPCM::TABLE_SIZE); ++bits) {
         int val = -2;
         for (int i = 0; i < S4ADPCM::TABLE_SIZE; ++i) {
-            if (bits & (1 << i)) val += 1;
-            if (compressBits == 8)
-                S4ADPCM::DELTA_TABLE_8[i] = val;
-            else
-                S4ADPCM::DELTA_TABLE_4[i] = val;
+            if (bits & (1 << i)) 
+                val += 1;
+            deltaTable[i] = val;
         }
         if (val >= 2) {
             int64_t err = 0;
-            int32_t* stereo = testCompress(data, nSamples, &err, compressBits == 8 ? ExpanderAD4::Codec::BIT8 : ExpanderAD4::Codec::BIT4, true);
+            int32_t* stereo = testCompress(data, nSamples, &err, compressBits == 8 ? ExpanderAD4::Codec::BIT8 : ExpanderAD4::Codec::BIT4, true, deltaTable);
             delete[] stereo;
             if (err < bestE) {
                 printf("e12(k)=%d ", int(err / 1000));
                 for (int i = 0; i < S4ADPCM::TABLE_SIZE; ++i)
                     if (compressBits == 8)
-                        printf("%d ", S4ADPCM::DELTA_TABLE_8[i]);
+                        printf("%d ", deltaTable[i]);
                     else
-                        printf("%d ", S4ADPCM::DELTA_TABLE_4[i]);
+                        printf("%d ", deltaTable[i]);
 
                 printf("\n");
                 bestE = err;
@@ -495,16 +494,27 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
                 data = covert44to22(nSamples, data, &nSamples);
             }
 
-            int32_t stages[3] = { 0 };
-
-            uint8_t* compressed = 0;
-            uint32_t nCompressed = 0;
             int64_t e12 = 0;
-            int32_t* stereo = compressAndTest(data, nSamples,
-                codec, &compressed, &nCompressed, &e12);
+            int table = 0;
+            int64_t bestE = INT64_MAX;
+            int bits = codec == wav12::ExpanderAD4::Codec::BIT8 ? 8 : 4;
+            uint8_t* compressed = 0;
+            uint32_t nCompressed;
 
-            image.addFile(stdfname.c_str(), compressed, nCompressed,
-                codec == wav12::ExpanderAD4::Codec::BIT8, e12);
+            for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
+                int64_t error = 0;
+                wav12::ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
+                delete[] compressed;
+
+                if (error < bestE) {
+                    bestE = error;
+                    table = i;
+                }
+            }
+
+            int32_t* stereo = compressAndTest(data, nSamples, codec, table, &compressed, &nCompressed, &e12);
+
+            image.addFile(stdfname.c_str(), compressed, nCompressed, codec == wav12::ExpanderAD4::Codec::BIT8, table, e12);
 
             delete[] compressed;
             delete[] data;

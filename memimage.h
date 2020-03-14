@@ -11,7 +11,8 @@ struct MemUnit {
     uint32_t offset;
     uint32_t size : 24;     // if needed, an extra sample is added so that size==nSamples
     uint32_t is8Bit : 1;
-    uint32_t reserve : 7;
+    uint32_t table : 2;     // 0-3 to select table
+    uint32_t reserve : 4;
 
     uint32_t numSamples() const { return is8Bit ? size : size * 2; }
 };
@@ -34,7 +35,7 @@ public:
 
     void addDir(const char* name);
     // MSE just used for debugging output.
-    void addFile(const char* name, void* data, int size, bool use8Bit, int64_t e12);
+    void addFile(const char* name, void* data, int size, bool use8Bit, int table, int64_t e12);
     void dumpConsole();
 
     void write(const char* name);

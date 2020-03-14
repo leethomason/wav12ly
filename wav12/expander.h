@@ -37,7 +37,7 @@ namespace wav12 {
         // Returns the number of samples it could expand. nSamples should be even,
         // unless it is the last sample (which can be odd if it uses up the
         // entire track.)
-        int expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add, Codec codec, bool overrideEasing);
+        int expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add, Codec codec, const int* table, bool overrideEasing);
         void rewind();
         bool done() const { return m_stream->done(); }
 
@@ -55,14 +55,14 @@ namespace wav12 {
         // Codec 4/4-bit is a kind of ADPCM. (Although simpler than the standard algorithm.)
         // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
         // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
-        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
-        static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared);
+        static void compress4(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, const int* table, int64_t* e16squared);
+        static void compress8(const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, const int* table, int64_t* e16squared);
 
-        static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, int64_t* e16squared)
+        static void compress(Codec codec, const int16_t* data, int32_t nSamples, uint8_t** compressed, uint32_t* nCompressed, const int* table, int64_t* e16squared)
         {
             switch (codec) {
-            case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed, e16squared);   break;
-            case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed, e16squared);   break;
+            case Codec::BIT4:  compress4(data, nSamples, compressed, nCompressed, table, e16squared);   break;
+            case Codec::BIT8:  compress8(data, nSamples, compressed, nCompressed, table, e16squared);   break;
             }
         }
 

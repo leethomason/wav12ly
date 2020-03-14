@@ -39,7 +39,7 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit, int64_t _e12)
+void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit, int table, int64_t _e12)
 {   
     assert(numDir > 0);
     assert(numFile < MemImage::NUM_FILES);
@@ -53,6 +53,7 @@ void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit,
     if (use8Bit) {
         image->unit[index].is8Bit = 1;
     }
+    image->unit[index].table = table;
     e12[numFile] = _e12;
     memcpy(dataVec + currentPos, data, size);
     currentPos += size;
@@ -111,10 +112,10 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) ratio=%5.1f 8Bit=%d e12(k)=%8d ave-e12=%8d\n",
+                printf("   %8s at %8d size=%6d (%3dk) table=%d 8Bit=%d e12(k)=%8d ave-e12=%8d\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
-                    100.0f * float(fileUnit.size) / (float)(fileUnit.numSamples() * 2),
+                    fileUnit.table,
                     fileUnit.is8Bit,
                     int(e12[index - MemImage::NUM_DIR] / 1000),
                     int(e12[index - MemImage::NUM_DIR] / fileUnit.numSamples()));
