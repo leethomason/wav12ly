@@ -38,13 +38,12 @@ uint32_t MemStream::fetch(uint8_t *buffer, uint32_t nBytes)
 
 
 int32_t* compressAndTest(const int16_t* samples, int nSamples,
-    wav12::ExpanderAD4::Codec codec, int table,
+    int codec, int table,
     uint8_t** compressed, uint32_t* nCompressed,
     int64_t* e12)
 {
-    int bits = codec == wav12::ExpanderAD4::Codec::BIT8 ? 8 : 4;
     int64_t error = 0;
-    wav12::ExpanderAD4::compress(codec, samples, nSamples, compressed, nCompressed, S4ADPCM::getTable(bits, table), e12);
+    wav12::ExpanderAD4::compress(codec, samples, nSamples, compressed, nCompressed, S4ADPCM::getTable(codec, table), e12);
 
     int32_t* stereoData = new int32_t[nSamples * 2];
     MemStream memStream(*compressed, *nCompressed);
@@ -57,7 +56,7 @@ int32_t* compressAndTest(const int16_t* samples, int nSamples,
 
     for (int i = 0; i < nSamples; i += STEP) {
         int n = wav12::wav12Min(STEP, nSamples - i);
-        expander.expand(stereoData + i * 2, n, VOLUME, false, codec, S4ADPCM::getTable(bits, table), true);
+        expander.expand(stereoData + i * 2, n, VOLUME, false, codec, S4ADPCM::getTable(codec, table), true);
     }
     return stereoData;
 }

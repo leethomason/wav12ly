@@ -53,7 +53,7 @@ void test_1()
     ExpanderAD4 expander;
     expander.init(&memStream);
 
-    int decoded = expander.expand(stereo, OUT, 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
+    int decoded = expander.expand(stereo, OUT, 256, false, S4ADPCM_4BIT, S4ADPCM::getTable(4, 0), true);
     assert(decoded == NS + 1);  // rounds up even
 
     for (int i = 0; i < NS; ++i) {
@@ -88,7 +88,7 @@ void test_2()
     expander.init(&memStream);
 
     for (int i = 0; i < OUT; i += 10) {
-        int decoded = expander.expand(stereo + i * 2, 10, 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
+        int decoded = expander.expand(stereo + i * 2, 10, 256, false, S4ADPCM_4BIT, S4ADPCM::getTable(4, 0), true);
         if (decoded == 0) break;
     }
     for (int i = 0; i < NS; ++i) {
@@ -123,7 +123,7 @@ void basicTest_4()
 
     static const int STEP = 8;
     for (int i = 0; i < NS; i += STEP) {
-        expander.expand(stereo + i * 2, wav12Min(STEP, NS - i), 256, false, ExpanderAD4::Codec::BIT4, S4ADPCM::getTable(4, 0), true);
+        expander.expand(stereo + i * 2, wav12Min(STEP, NS - i), 256, false, S4ADPCM_4BIT, S4ADPCM::getTable(4, 0), true);
     }
     // Convert from 32 bit output at back to 16 bit output.
     for (int i = 0; i < NS; ++i) {
@@ -168,7 +168,7 @@ void basicTest_8()
 
     static const int STEP = 8;
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, STEP, 256, false, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
+        i += expander.expand(stereo + i * 2, STEP, 256, false, S4ADPCM_8BIT, S4ADPCM::getTable(8, 0), true);
     }
     // Convert from 32 bit output at back to 16 bit output.
     for (int i = 0; i < NS; ++i) {
@@ -212,11 +212,11 @@ void basicTest_8Add()
     expander.init(&memStream);
 
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, 6, 256, false, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
+        i += expander.expand(stereo + i * 2, 6, 256, false, S4ADPCM_8BIT, S4ADPCM::getTable(8, 0), true);
     }
     expander.rewind();
     for (int i = 0; i < NS; /* none */) {
-        i += expander.expand(stereo + i * 2, 10, 256, true, ExpanderAD4::Codec::BIT8, S4ADPCM::getTable(8, 0), true);
+        i += expander.expand(stereo + i * 2, 10, 256, true, S4ADPCM_8BIT, S4ADPCM::getTable(8, 0), true);
     }
 
     // Convert from 32 bit output at back to 16 bit output.
@@ -312,7 +312,7 @@ int main(int argc, const char* argv[])
 }
 
 
-int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, ExpanderAD4::Codec codec, bool overrideEasing, const int* table)
+int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, int codec, bool overrideEasing, const int* table)
 {
     uint8_t* compressed = 0;
     uint32_t nCompressed = 0;
@@ -396,19 +396,19 @@ bool runTest(wave_reader* wr, int compressBits)
 #else
     int64_t mse = 0;
 
-    int32_t* stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, true, S4ADPCM::getTable(4, 1));
+    int32_t* stereoData = testCompress(data, nSamples, &mse, S4ADPCM_4BIT, true, S4ADPCM::getTable(4, 1));
     saveOut("test4.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("4  bit error=%10lld\n", mse);
+    printf("4 bit error(k)=%10lld err/sample=%10d\n", mse/1000, int(mse/nSamples));
 
-    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT4, false, S4ADPCM::getTable(4, 1));
+    stereoData = testCompress(data, nSamples, &mse, S4ADPCM_4BIT, false, S4ADPCM::getTable(4, 1));
     saveOut("test4Eased.wav", stereoData, nSamples);
     delete[] stereoData;
 
-    stereoData = testCompress(data, nSamples, &mse, ExpanderAD4::Codec::BIT8, true, S4ADPCM::getTable(8, 1));
+    stereoData = testCompress(data, nSamples, &mse, S4ADPCM_8BIT, true, S4ADPCM::getTable(8, 1));
     saveOut("test8.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("8  bit error=%10lld\n", mse);
+    printf("8 bit error(k)=%10lld err/sample=%10d\n", mse/1000, int(mse/nSamples));
 
 #endif
     return true;
@@ -467,9 +467,9 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             fullPath += '/';
             fullPath += fname;
 
-            wav12::ExpanderAD4::Codec codec = wav12::ExpanderAD4::Codec::BIT4;
+            int bits = 4;
             if (fileElement->IntAttribute("compression") == 8) {
-                codec = wav12::ExpanderAD4::Codec::BIT8;
+                bits = 8;
             }
 
             wave_reader_error error = WR_NO_ERROR;
@@ -498,13 +498,12 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             int64_t e12 = 0;
             int table = 0;
             int64_t bestE = INT64_MAX;
-            int bits = codec == wav12::ExpanderAD4::Codec::BIT8 ? 8 : 4;
             uint8_t* compressed = 0;
             uint32_t nCompressed;
 
             for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
                 int64_t error = 0;
-                wav12::ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
+                wav12::ExpanderAD4::compress(bits, data, nSamples, &compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
                 delete[] compressed;
 
                 if (error < bestE) {
@@ -513,9 +512,9 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
                 }
             }
 
-            int32_t* stereo = compressAndTest(data, nSamples, codec, table, &compressed, &nCompressed, &e12);
+            int32_t* stereo = compressAndTest(data, nSamples, bits, table, &compressed, &nCompressed, &e12);
 
-            image.addFile(stdfname.c_str(), compressed, nCompressed, codec == wav12::ExpanderAD4::Codec::BIT8, table, e12);
+            image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, e12);
 
             delete[] compressed;
             delete[] data;
