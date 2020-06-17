@@ -41,7 +41,7 @@ const int S4ADPCM::DELTA_TABLE_8[N_TABLES][TABLE_SIZE] = {
     {-1, 0, 1, 2, 3, 4, 5, 6, 6},
 };
 
-void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* e2)
+void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, Error* pError)
 {
     for (int i = 0; i < nSamples; ++i) {
         int value = data[i];
@@ -71,8 +71,11 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
 #endif
         state->push(p);
 
-        *e2 += calcError(value, p);
-        assert(*e2 >= 0);    // check for overflow
+        if (pError) {
+            pError->e16squared += calcError(value, p);
+            assert(pError->e16squared >= 0);    // check for overflow
+            pError->set(value - p);
+        }
 
         int dTable = (delta >= 0 ? delta : -delta) >> 4;
         state->shift += table[dTable];
@@ -82,7 +85,7 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
 }
 
 
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* e2)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, Error* pError)
 {
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
@@ -122,8 +125,11 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
 
         state->push(p);
 
-        *e2 += calcError(value, p);
-        assert(*e2 >= 0);    // check for overflow
+        if (pError) {
+            pError->e16squared += calcError(value, p);
+            assert(pError->e16squared >= 0);    // check for overflow
+            pError->set(value - p);
+        }
 
         state->shift += table[delta >= 0 ? delta : -delta];
         if (state->shift < 0) state->shift = 0;

@@ -45,7 +45,7 @@ void test_1()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
-    int64_t error = 0;
+    S4ADPCM::Error error;
     ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -79,7 +79,7 @@ void test_2()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
-    int64_t error = 0;
+    S4ADPCM::Error error;
     ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -113,7 +113,7 @@ void basicTest_4()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
-    int64_t error = 0;
+    S4ADPCM::Error error;
     ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -158,7 +158,7 @@ void basicTest_8()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
-    int64_t error = 0;
+    S4ADPCM::Error error;
     ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -203,7 +203,7 @@ void basicTest_8Add()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = 0;
-    int64_t error = 0;
+    S4ADPCM::Error error;
     ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -317,7 +317,9 @@ int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, int codec
     uint8_t* compressed = 0;
     uint32_t nCompressed = 0;
     *e12 = 0;
-    ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, table, e12);
+    S4ADPCM::Error error;
+    ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, table, &error);
+    *e12 = error.e16squared;
 
     int32_t* stereoData = new int32_t[nSamples * 2];
     MemStream memStream(compressed, nCompressed);
@@ -502,12 +504,12 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             uint32_t nCompressed;
 
             for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                int64_t error = 0;
+                S4ADPCM::Error error;
                 wav12::ExpanderAD4::compress(bits, data, nSamples, &compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
                 delete[] compressed;
 
-                if (error < bestE) {
-                    bestE = error;
+                if (error.e16squared < bestE) {
+                    bestE = error.e16squared;
                     table = i;
                 }
             }
