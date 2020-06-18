@@ -30,6 +30,22 @@ static const float M_PI = 3.14f;
 static const int NSAMPLES = 63;
 static const int EXPAND_BLOCK = 32;
 
+void saveOut(const char* fname, const int32_t* stereo, int nSamples)
+{
+    int16_t* s16 = new int16_t[nSamples];
+    for (int i = 0; i < nSamples; ++i) {
+        s16[i] = stereo[i * 2] / 65536;
+    }
+
+    wave_writer_format writeFormat = { 1, 22050, 16 };
+    wave_writer_error error = WW_NO_ERROR;
+    wave_writer* ww = wave_writer_open(fname, &writeFormat, &error);
+    wave_writer_put_samples(ww, nSamples, (void*)s16);
+    wave_writer_close(ww, &error);
+
+    delete[] s16;
+}
+
 void test_1()
 {
     static const int NS = 23;
@@ -245,6 +261,8 @@ void generateTest()
 {
     static const int NSAMPLES = 1024;
     int16_t samples[NSAMPLES];
+    //static const int NSAMPLES = 1024 * 32;
+    //int16_t* samples = new int16_t[NSAMPLES];
     ExpanderAD4::generateTestData(NSAMPLES, samples);
     uint8_t compressed[NSAMPLES / 2];
     const int* table = S4ADPCM::getTable(4, 0);
@@ -254,6 +272,15 @@ void generateTest()
     int nCompressed = S4ADPCM::encode4(samples, NSAMPLES, compressed, &state, table, &err);
     int root = (int)sqrtf((float)err);
     assert(nCompressed == NSAMPLES / 2);
+    assert(root < 400);
+    /*
+    int32_t stereo[NSAMPLES * 2];
+    state = S4ADPCM::State();
+    S4ADPCM::decode4(compressed, nCompressed, 64, false, stereo, &state, table);
+
+    saveOut("testwav.wav", stereo, NSAMPLES);
+    delete[] samples;
+    */
 }
 
 int16_t* covert44to22(int nSamples, int16_t* data, int* nSamplesOut)
@@ -353,22 +380,6 @@ int32_t* testCompress(const int16_t* data, int nSamples, int32_t* err, int codec
     return stereoData;
 }
 
-
-void saveOut(const char* fname, const int32_t* stereo, int nSamples)
-{
-    int16_t* s16 = new int16_t[nSamples];
-    for (int i = 0; i < nSamples; ++i) {
-        s16[i] = stereo[i * 2] / 65536;
-    }
-
-    wave_writer_format writeFormat = { 1, 22050, 16 };
-    wave_writer_error error = WW_NO_ERROR;
-    wave_writer* ww = wave_writer_open(fname, &writeFormat, &error);
-    wave_writer_put_samples(ww, nSamples, (void*)s16);
-    wave_writer_close(ww, &error);
-
-    delete[] s16;
-}
 
 bool runTest(wave_reader* wr, int compressBits)
 {
