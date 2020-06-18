@@ -6,7 +6,7 @@
 
 int32_t* compressAndTest(const int16_t* samples, int nSamples, 
     int codec, int table,
-    uint8_t** compressed, uint32_t* nCompressed, 
+    uint8_t* compressed, uint32_t* nCompressed, 
     int64_t* e12);
 
 class MemStream : public wav12::IStream

@@ -123,7 +123,7 @@ private:
 
     inline static int32_t scaleVol(int32_t value, int32_t volumeShifted)
     {
-        #if false
+        #if true
         // max: SHRT_MAX * 256 * 256
         //      32767 * 256 * 256 = 2147418112
         //              INT32_MAX = 2147483647
@@ -136,8 +136,9 @@ private:
             else
                 return (int32_t)s64;
         }
-        #endif
+        #else
         return value * volumeShifted;
+        #endif
     }
 
     inline static int32_t sat_add(int32_t x, int32_t y)

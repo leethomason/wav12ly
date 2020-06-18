@@ -44,9 +44,9 @@ void test_1()
     };
 
     uint32_t nCompressed = 0;
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[NS];
     S4ADPCM::Error error;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+    ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -62,6 +62,7 @@ void test_1()
     for (int i = NS + 1; i < OUT; ++i) {
         assert(stereo[i * 2] == 0);
     }
+    delete[] compressed;
 }
 
 void test_2()
@@ -78,9 +79,9 @@ void test_2()
     };
 
     uint32_t nCompressed = 0;
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[NS];
     S4ADPCM::Error error;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+    ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -97,6 +98,7 @@ void test_2()
     for (int i = NS + 1; i < OUT; ++i) {
         assert(stereo[i * 2] == 0);
     }
+    delete[] compressed;
 }
 
 
@@ -112,9 +114,9 @@ void basicTest_4()
     };
 
     uint32_t nCompressed = 0;
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[NS];
     S4ADPCM::Error error;
-    ExpanderAD4::compress4(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+    ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -157,9 +159,9 @@ void basicTest_8()
     };
 
     uint32_t nCompressed = 0;
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[NS];
     S4ADPCM::Error error;
-    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
+    ExpanderAD4::compress8(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -202,9 +204,9 @@ void basicTest_8Add()
     };
 
     uint32_t nCompressed = 0;
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[NS];
     S4ADPCM::Error error;
-    ExpanderAD4::compress8(samples, NS, &compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
+    ExpanderAD4::compress8(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
     memStream.set(0, nCompressed);
@@ -314,11 +316,11 @@ int main(int argc, const char* argv[])
 
 int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, int codec, bool overrideEasing, const int* table)
 {
-    uint8_t* compressed = 0;
+    uint8_t* compressed = new uint8_t[nSamples];
     uint32_t nCompressed = 0;
     *e12 = 0;
     S4ADPCM::Error error;
-    ExpanderAD4::compress(codec, data, nSamples, &compressed, &nCompressed, table, &error);
+    ExpanderAD4::compress(codec, data, nSamples, compressed, &nCompressed, table, &error);
     *e12 = error.e16squared;
 
     int32_t* stereoData = new int32_t[nSamples * 2];
@@ -500,13 +502,12 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             int64_t e12 = 0;
             int table = 0;
             int64_t bestE = INT64_MAX;
-            uint8_t* compressed = 0;
+            uint8_t* compressed = new uint8_t[nSamples];
             uint32_t nCompressed;
 
             for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
                 S4ADPCM::Error error;
-                wav12::ExpanderAD4::compress(bits, data, nSamples, &compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
-                delete[] compressed;
+                wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
 
                 if (error.e16squared < bestE) {
                     bestE = error.e16squared;
@@ -514,7 +515,7 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
                 }
             }
 
-            int32_t* stereo = compressAndTest(data, nSamples, bits, table, &compressed, &nCompressed, &e12);
+            int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &e12);
 
             image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, e12);
 

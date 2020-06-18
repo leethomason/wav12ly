@@ -39,7 +39,7 @@ uint32_t MemStream::fetch(uint8_t *buffer, uint32_t nBytes)
 
 int32_t* compressAndTest(const int16_t* samples, int nSamples,
     int codec, int table,
-    uint8_t** compressed, uint32_t* nCompressed,
+    uint8_t* compressed, uint32_t* nCompressed,
     int64_t* e12)
 {
     S4ADPCM::Error error;
@@ -47,7 +47,7 @@ int32_t* compressAndTest(const int16_t* samples, int nSamples,
     *e12 = error.e16squared;
 
     int32_t* stereoData = new int32_t[nSamples * 2];
-    MemStream memStream(*compressed, *nCompressed);
+    MemStream memStream(compressed, *nCompressed);
     memStream.set(0, *nCompressed);
     wav12::ExpanderAD4 expander;
     expander.init(&memStream);

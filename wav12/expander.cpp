@@ -43,22 +43,18 @@ void ExpanderAD4::rewind()
 }
 
 void ExpanderAD4::compress4(const int16_t* data, int32_t nSamples,
-    uint8_t** compressed, uint32_t* nCompressed, const int* table, S4ADPCM::Error* error)
+    uint8_t* compressed, uint32_t* nCompressed, const int* table, S4ADPCM::Error* error)
 {
-    *compressed = new uint8_t[(nSamples + 1)/2];
-
     S4ADPCM::State state;
-    *nCompressed = S4ADPCM::encode4(data, nSamples, *compressed, &state, table, error);
+    *nCompressed = S4ADPCM::encode4(data, nSamples, compressed, &state, table, error);
 }
 
 void ExpanderAD4::compress8(const int16_t* data, int32_t nSamples,
-    uint8_t** compressed, uint32_t* nCompressed, const int* table, S4ADPCM::Error* error)
+    uint8_t* compressed, uint32_t* nCompressed, const int* table, S4ADPCM::Error* error)
 {
     *nCompressed = nSamples;
-    *compressed = new uint8_t[nSamples];
-
     S4ADPCM::State state;
-    S4ADPCM::encode8(data, nSamples, *compressed, &state, table, error);
+    S4ADPCM::encode8(data, nSamples, compressed, &state, table, error);
 }
 
 
