@@ -45,7 +45,7 @@ void test_1()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[NS];
-    S4ADPCM::Error error;
+    int32_t error = 0;
     ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -80,7 +80,7 @@ void test_2()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[NS];
-    S4ADPCM::Error error;
+    int32_t error = 0;
     ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -115,7 +115,7 @@ void basicTest_4()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[NS];
-    S4ADPCM::Error error;
+    int32_t error = 0;
     ExpanderAD4::compress4(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -141,7 +141,7 @@ void basicTest_4()
     for (int i = 0; i < NS; ++i) {
         printf("%4d ", stereo[i * 2]);
     }
-    printf("\n");
+    printf("\nave err^2=%d err=%.1f\n\n", error, sqrtf((float)error));
 
     delete[] compressed;
     delete[] stereo;
@@ -160,7 +160,7 @@ void basicTest_8()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[NS];
-    S4ADPCM::Error error;
+    int32_t error = 0;
     ExpanderAD4::compress8(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -186,7 +186,7 @@ void basicTest_8()
     for (int i = 0; i < NS; ++i) {
         printf("%4d ", stereo[i * 2]);
     }
-    printf("\n");
+    printf("\nave err^2=%d err=%.1f\n\n", error, sqrtf((float)error));
 
     delete[] compressed;
     delete[] stereo;
@@ -205,7 +205,7 @@ void basicTest_8Add()
 
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[NS];
-    S4ADPCM::Error error;
+    int32_t error = 0;
     ExpanderAD4::compress8(samples, NS, compressed, &nCompressed, S4ADPCM::getTable(8, 0), &error);
 
     MemStream memStream(compressed, nCompressed);
@@ -241,6 +241,20 @@ void basicTest_8Add()
     delete[] stereo;
 }
 
+void generateTest()
+{
+    static const int NSAMPLES = 1024;
+    int16_t samples[NSAMPLES];
+    ExpanderAD4::generateTestData(NSAMPLES, samples);
+    uint8_t compressed[NSAMPLES / 2];
+    const int* table = S4ADPCM::getTable(4, 0);
+    int32_t err = 0;
+
+    S4ADPCM::State state;
+    int nCompressed = S4ADPCM::encode4(samples, NSAMPLES, compressed, &state, table, &err);
+    int root = (int)sqrtf((float)err);
+    assert(nCompressed == NSAMPLES / 2);
+}
 
 int16_t* covert44to22(int nSamples, int16_t* data, int* nSamplesOut)
 {
@@ -261,6 +275,7 @@ int main(int argc, const char* argv[])
     test_2();
     basicTest_4();
     basicTest_8();
+    generateTest();
 
     if (argc < 2) {
         printf("Usage:\n");
@@ -314,14 +329,11 @@ int main(int argc, const char* argv[])
 }
 
 
-int32_t* testCompress(const int16_t* data, int nSamples, int64_t* e12, int codec, bool overrideEasing, const int* table)
+int32_t* testCompress(const int16_t* data, int nSamples, int32_t* err, int codec, bool overrideEasing, const int* table)
 {
     uint8_t* compressed = new uint8_t[nSamples];
     uint32_t nCompressed = 0;
-    *e12 = 0;
-    S4ADPCM::Error error;
-    ExpanderAD4::compress(codec, data, nSamples, compressed, &nCompressed, table, &error);
-    *e12 = error.e16squared;
+    ExpanderAD4::compress(codec, data, nSamples, compressed, &nCompressed, table, err);
 
     int32_t* stereoData = new int32_t[nSamples * 2];
     MemStream memStream(compressed, nCompressed);
@@ -398,12 +410,12 @@ bool runTest(wave_reader* wr, int compressBits)
         }
     }
 #else
-    int64_t mse = 0;
+    int32_t mse = 0;
 
     int32_t* stereoData = testCompress(data, nSamples, &mse, S4ADPCM_4BIT, true, S4ADPCM::getTable(4, 1));
     saveOut("test4.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("4 bit error(k)=%10lld err/sample=%10d\n", mse/1000, int(mse/nSamples));
+    printf("4 bit e12^2/sample)=%dn", mse);
 
     stereoData = testCompress(data, nSamples, &mse, S4ADPCM_4BIT, false, S4ADPCM::getTable(4, 1));
     saveOut("test4Eased.wav", stereoData, nSamples);
@@ -412,7 +424,7 @@ bool runTest(wave_reader* wr, int compressBits)
     stereoData = testCompress(data, nSamples, &mse, S4ADPCM_8BIT, true, S4ADPCM::getTable(8, 1));
     saveOut("test8.wav", stereoData, nSamples);
     delete[] stereoData;
-    printf("8 bit error(k)=%10lld err/sample=%10d\n", mse/1000, int(mse/nSamples));
+    printf("8 bit e12^2/sample)=%dn", mse);
 
 #endif
     return true;
@@ -499,25 +511,25 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
                 data = covert44to22(nSamples, data, &nSamples);
             }
 
-            int64_t e12 = 0;
+            int32_t err = 0;
             int table = 0;
-            int64_t bestE = INT64_MAX;
+            int32_t bestE = INT32_MAX;
             uint8_t* compressed = new uint8_t[nSamples];
             uint32_t nCompressed;
 
             for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                S4ADPCM::Error error;
+                int32_t error = 0;
                 wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
 
-                if (error.e16squared < bestE) {
-                    bestE = error.e16squared;
+                if (error < bestE) {
+                    bestE = error;
                     table = i;
                 }
             }
 
-            int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &e12);
+            int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
 
-            image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, e12);
+            image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
 
             delete[] compressed;
             delete[] data;

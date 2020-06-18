@@ -91,13 +91,7 @@ void MemImageUtil::dumpConsole()
 {
     uint32_t totalUncompressed = 0, totalSize = 0;
     const MemImage* image = (const MemImage*)dataVec;
-    int64_t totalE4 = 0;
-    int64_t totalE8 = 0;
-    int64_t count4 = 0;
-    int64_t count8 = 0;
-    int64_t samples4 = 0;
-    int64_t samples8 = 0;
-
+    
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
 
@@ -112,24 +106,13 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) table=%d 8Bit=%d e12(k)=%8d ave-e12=%8d\n",
+                printf("   %8s at %8d size=%6d (%3dk) table=%d 8Bit=%d ave-err=%7.1f\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     fileUnit.table,
                     fileUnit.is8Bit,
-                    int(e12[index - MemImage::NUM_DIR] / 1000),
-                    int(e12[index - MemImage::NUM_DIR] / fileUnit.numSamples()));
+                    sqrtf((float)e12[index - MemImage::NUM_DIR]));
 
-                if (fileUnit.is8Bit) {
-                    totalE8 += e12[index - MemImage::NUM_DIR];
-                    count8++;
-                    samples8 += fileUnit.numSamples();
-                }
-                else {
-                    totalE4 += e12[index - MemImage::NUM_DIR];
-                    ++count4;
-                    samples4 += fileUnit.numSamples();
-                }
                 totalUncompressed += fileUnit.numSamples() * 2;
                 totalSize += fileUnit.size;
                 dirTotal += fileUnit.size;
@@ -146,10 +129,6 @@ void MemImageUtil::dumpConsole()
 
     size_t totalImageSize = sizeof(MemImage) + currentPos;
     printf("Overall ratio=%5.2f\n", (float)totalSize / (float)(totalUncompressed));
-    if (count4)
-        printf("4-bit e12/sample=%8d  e12/track(k)=%8d\n", (int)(totalE4 / samples4), int(totalE4/(1000*count4)));
-    if (count8)
-        printf("8-bit e12/sample=%8d  e12/track(k)=%8d\n", (int)(totalE8 / samples4), int(totalE8/(1000*count8)));
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
     printf("Directory name hash=%x\n", dirHash);
 }
