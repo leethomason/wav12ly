@@ -159,9 +159,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
             d = *p & 0xf;
         }
         int8_t delta = int8_t(d << 4) >> 4;
-
-        int guess = state->guess();
-        int value = guess + (delta << state->shift);
+        int value = state->guess() + (delta << state->shift);
 
 #ifdef _WIN32
         if (value < SHRT_MIN || value > SHRT_MAX) {
@@ -176,10 +174,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
             state->volumeShifted -= VOLUME_EASING;
 
         int32_t s = scaleVol(value, state->volumeShifted);
-        if (add)
-            out[0] = out[1] = sat_add(s, out[0]);
-        else
-            out[0] = out[1] = s;
+        out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;
 
         state->shift += table[delta >= 0 ? delta : -delta];
@@ -196,9 +191,7 @@ void S4ADPCM::decode8(const uint8_t* p, int32_t nSamples,
 
     for (int32_t i = 0; i < nSamples; ++i) {
         int delta = int8_t(*p++);
-
-        int guess = state->guess();
-        int value = guess + (delta << state->shift);
+        int value = state->guess() + (delta << state->shift);
 
 #ifdef _WIN32
         if (value < SHRT_MIN || value > SHRT_MAX) {
@@ -213,12 +206,7 @@ void S4ADPCM::decode8(const uint8_t* p, int32_t nSamples,
             state->volumeShifted -= VOLUME_EASING;
 
         int32_t s = scaleVol(value, state->volumeShifted);
-        if (add) {
-            out[0] = out[1] = sat_add(s, out[0]);
-        }
-        else {
-            out[0] = out[1] = s;
-        }
+        out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;
 
         int dTable = (delta >= 0 ? delta : -delta) >> 4;
