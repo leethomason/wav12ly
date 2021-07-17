@@ -160,7 +160,6 @@
   <ItemGroup>
     <ClCompile Include="..\memimage.cpp" />
     <ClCompile Include="..\tinyxml2.cpp" />
-    <ClCompile Include="..\wav12.cpp" />
     <ClCompile Include="..\wav12ly.cpp" />
     <ClCompile Include="..\wave_reader.c" />
     <ClCompile Include="..\wave_writer.c" />

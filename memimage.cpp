@@ -106,11 +106,11 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) table=%d 8Bit=%d ave-err=%7.1f\n",
+                printf("   %8s at %8d size=%6d (%3dk) table=%d %s ave-err=%7.1f\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     fileUnit.table,
-                    fileUnit.is8Bit,
+                    fileUnit.is8Bit ? "8b" : "4b",
                     sqrtf((float)e12[index - MemImage::NUM_DIR]));
 
                 totalUncompressed += fileUnit.numSamples() * 2;
