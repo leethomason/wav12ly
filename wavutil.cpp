@@ -48,7 +48,7 @@ int32_t* compressAndTest(const int16_t* samples, int nSamples,
     MemStream memStream(compressed, *nCompressed);
     memStream.set(0, *nCompressed);
     wav12::ExpanderAD4 expander;
-    expander.init(&memStream);
+    expander.init(&memStream, codec, table);
 
     static const int STEP = 1024;
     static const int VOLUME = 256;
