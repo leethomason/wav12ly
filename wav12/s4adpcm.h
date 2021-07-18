@@ -122,7 +122,7 @@ private:
     {
         // Checking for overflow has an almost too-small perf impact.
         #if true
-        int64_t s64 = value * volumeShifted;
+        int64_t s64 = int64_t(value) * int64_t(volumeShifted);
         if (s64 > INT32_MAX)
             return INT32_MAX;
         else if (s64 < INT32_MIN)

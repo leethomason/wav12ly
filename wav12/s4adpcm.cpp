@@ -64,7 +64,7 @@ void S4ADPCM::encode8(const int16_t* data, int32_t nSamples, uint8_t* target, St
         W12ASSERT(p >= SHRT_MIN && p <= SHRT_MAX);
         state->push(p);
 
-        int64_t err = (value - p);
+        int64_t err = int64_t(value) - int64_t(p);
         err12Squared += err * err;
 
         int dTable = (delta >= 0 ? delta : -delta) >> 4;
@@ -117,7 +117,7 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
 
         state->push(p);
 
-        int64_t err = (value - p);
+        int64_t err = int64_t(value) - int64_t(p);
         err12Squared += err * err;
 
         state->shift += table[delta >= 0 ? delta : -delta];

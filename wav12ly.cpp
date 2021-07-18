@@ -353,6 +353,8 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             }
 
             int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
+            std::string f = fname + std::string(".test.wav");
+            saveOut(f.c_str(), stereo, nSamples);
 
             image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
 
