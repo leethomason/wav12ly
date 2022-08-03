@@ -289,6 +289,12 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             fontName = dirElement->Attribute("name");
         }
         image.addDir(fontName.c_str());
+        const char* post = dirElement->Attribute("post");
+        std::string postPath;
+        if (post) {
+            postPath = post;
+            postPath.append("/");
+        }
 
         for (const XMLElement* fileElement = dirElement->FirstChildElement();
             fileElement;
@@ -353,9 +359,10 @@ int parseXML(const char* filename, const std::string& inputPath, bool textFile)
             }
 
             int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
-            std::string f = fname + std::string(".test.wav");
-            saveOut(f.c_str(), stereo, nSamples);
-
+            if (post) {
+                std::string f = postPath + fname;
+                saveOut(f.c_str(), stereo, nSamples);
+            }
             image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
 
             delete[] compressed;
