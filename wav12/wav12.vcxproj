@@ -95,6 +95,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>C:\src\wav12ly\util;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -155,6 +156,7 @@
   <ItemGroup>
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
+    <ClInclude Include="..\util\interface.h" />
     <ClInclude Include="..\wave_reader.h" />
     <ClInclude Include="..\wave_writer.h" />
     <ClInclude Include="..\wavutil.h" />

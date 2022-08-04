@@ -30,7 +30,7 @@ using namespace wav12;
 
 uint8_t ExpanderAD4::m_buffer[BUFFER_SIZE] = {0};
 
-void ExpanderAD4::init(IStream* stream, int _codec, int _table)
+void ExpanderAD4::init(::IStream* stream, int _codec, int _table)
 {
     W12ASSERT(stream);
     m_stream = stream;
@@ -65,6 +65,8 @@ void ExpanderAD4::compress8(const int16_t* data, int32_t nSamples,
 int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, 
     int codec, const int* table, bool overrideEasing)
 {
+    W12ASSERT(codec == 4 || codec == 8);
+
     if (!m_stream)
         return 0;
 

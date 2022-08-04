@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "interface.h"
 #include "./wav12/wav12stream.h"
 #include "./wav12/expander.h"
 
@@ -9,7 +10,7 @@ int32_t* compressAndTest(const int16_t* samples, int nSamples,
     uint8_t* compressed, uint32_t* nCompressed, 
     int32_t* err);
 
-class MemStream : public wav12::IStream
+class MemStream : public IStream
 {
 public:
     MemStream(const uint8_t* data, uint32_t dataSize);

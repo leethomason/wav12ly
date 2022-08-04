@@ -23,11 +23,10 @@
 #ifndef WAV_COMPRESSION
 #define WAV_COMPRESSION
 
-#include "wav12stream.h"
 #include "s4adpcm.h"
+#include "interface.h"
 
 #include <stdint.h>
-#include <assert.h>
 #include <string.h>
 #include <limits.h>
 
@@ -100,7 +99,6 @@ namespace wav12 {
             case S4ADPCM_4BIT:   return (n + 1) / 2;
             case S4ADPCM_8BIT:   return n;
             }
-            assert(false);
             return 0;
         }
 
@@ -110,7 +108,6 @@ namespace wav12 {
             case S4ADPCM_4BIT:   return b * 2;
             case S4ADPCM_8BIT:   return b;
             }
-            assert(false);
             return 0;
         }
 

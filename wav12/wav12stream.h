@@ -24,7 +24,7 @@
 #define WAV12_STREAM_INCLUDED
 
 #include <stdint.h>
-
+/*
 namespace wav12 {
 
     // Represents an entire stream, which may contain multiple compressed sounds.
@@ -46,6 +46,6 @@ namespace wav12 {
     };
 
 }
-
+*/
 
 #endif // WAV12_STREAM_INCLUDED

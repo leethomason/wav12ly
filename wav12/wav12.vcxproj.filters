@@ -39,6 +39,9 @@
     <ClInclude Include="expander.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\util\interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\wave_reader.c">
