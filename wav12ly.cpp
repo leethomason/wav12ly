@@ -24,7 +24,7 @@ using namespace wav12;
 using namespace tinyxml2;
 
 bool runTest(wave_reader* wr, int compressBits);
-int parseXML(const char* filename, const std::string& inputPath, bool textFile);
+int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile);
 
 static const float M_PI = 3.14f;
 static const int NSAMPLES = 63;
@@ -208,8 +208,14 @@ int main(int argc, const char* argv[])
         }
     }
 
-    if (strstr(argv[1], ".xml")) {
-        int rc = parseXML(argv[1], inputPath, writeText);
+    std::vector<std::string> xmlFiles;
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], ".xml")) {
+            xmlFiles.push_back(std::string(argv[i]));
+        }
+    }
+    if (!xmlFiles.empty()) {
+        int rc = parseXML(xmlFiles, inputPath, writeText);
         return rc;
     }
 
@@ -266,109 +272,111 @@ std::string stdString(const char* p)
 }
 
 
-int parseXML(const char* filename, const std::string& inputPath, bool textFile)
+int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile)
 {
-    XMLDocument doc;
-    doc.LoadFile(filename);
-
-    if (doc.Error()) {
-        printf("XML error: %s\n", doc.ErrorName());
-        return 1;
-    }
-
     MemImageUtil image;
 
-    for (const XMLElement* dirElement = doc.RootElement()->FirstChildElement();
-        dirElement;
-        dirElement = dirElement->NextSiblingElement())
-    {
-        const char* p = dirElement->Attribute("path");
-        std::string stdDirName = p;
-        std::string fontName = stdDirName;
-        if (dirElement->Attribute("name")) {
-            fontName = dirElement->Attribute("name");
-        }
-        image.addDir(fontName.c_str());
-        const char* post = dirElement->Attribute("post");
-        std::string postPath;
-        if (post) {
-            postPath = post;
-            postPath.append("/");
+    for (const std::string& filename : files) {
+        XMLDocument doc;
+        doc.LoadFile(filename.c_str());
+
+        if (doc.Error()) {
+            printf("XML error: %s\n", doc.ErrorName());
+            return 1;
         }
 
-        for (const XMLElement* fileElement = dirElement->FirstChildElement();
-            fileElement;
-            fileElement = fileElement->NextSiblingElement())
+        for (const XMLElement* dirElement = doc.RootElement()->FirstChildElement();
+            dirElement;
+            dirElement = dirElement->NextSiblingElement())
         {
-            const char* fname = fileElement->Attribute("path");
-            const char* extension = strrchr(fname, '.');
-            std::string stdfname;
-            stdfname.append(fname, extension);
-
-            std::string fullPath = inputPath;
-            fullPath += stdDirName;
-            fullPath += '/';
-            fullPath += fname;
-
-            int bits = 4;
-            fileElement->QueryIntAttribute("compression", &bits);
-            int loopFade = 0;
-            fileElement->QueryIntAttribute("loopFade", &loopFade);
-
-            wave_reader_error error = WR_NO_ERROR;
-            wave_reader* wr = wave_reader_open(fullPath.c_str(), &error);
-            if (error != WR_NO_ERROR) {
-                printf("Failed to open: %s\n", fullPath.c_str());
-                return error;
+            const char* p = dirElement->Attribute("path");
+            std::string stdDirName = p;
+            std::string fontName = stdDirName;
+            if (dirElement->Attribute("name")) {
+                fontName = dirElement->Attribute("name");
             }
-
-            int format = wave_reader_get_format(wr);
-            int nChannels = wave_reader_get_num_channels(wr);
-            int rate = wave_reader_get_sample_rate(wr);
-            int nSamples = wave_reader_get_num_samples(wr);
-
-            if (format != 1 || nChannels != 1 || !(rate == 22050 || rate == 44100)) {
-                printf("Input '%s' must be 22050/44100 Hz Mono, freq=%d channels=%d\n", fname, rate, nChannels);
-                return 100;
-            }
-
-            int16_t* data = new int16_t[nSamples + 1];  // allocate extra in case we need to tack on.
-            wave_reader_get_samples(wr, nSamples, data);
-            if (rate == 44100) {
-                data = covert44to22(nSamples, data, &nSamples);
-            }
-            if (nSamples & 1) {
-                data[nSamples] = data[nSamples - 1];
-                nSamples++;
-            }
-
-            int32_t err = 0;
-            int table = 0;
-            int32_t bestE = INT32_MAX;
-            uint8_t* compressed = new uint8_t[nSamples];
-            uint32_t nCompressed;
-
-            for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                int32_t error = 0;
-                wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
-
-                if (error < bestE) {
-                    bestE = error;
-                    table = i;
-                }
-            }
-
-            int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
+            image.addDir(fontName.c_str());
+            const char* post = dirElement->Attribute("post");
+            std::string postPath;
             if (post) {
-                std::string f = postPath + fname;
-                saveOut(f.c_str(), stereo, nSamples);
+                postPath = post;
+                postPath.append("/");
             }
-            image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
 
-            delete[] compressed;
-            delete[] data;
-            delete[] stereo;
-            wave_reader_close(wr);
+            for (const XMLElement* fileElement = dirElement->FirstChildElement();
+                fileElement;
+                fileElement = fileElement->NextSiblingElement())
+            {
+                const char* fname = fileElement->Attribute("path");
+                const char* extension = strrchr(fname, '.');
+                std::string stdfname;
+                stdfname.append(fname, extension);
+
+                std::string fullPath = inputPath;
+                fullPath += stdDirName;
+                fullPath += '/';
+                fullPath += fname;
+
+                int bits = 4;
+                fileElement->QueryIntAttribute("compression", &bits);
+                int loopFade = 0;
+                fileElement->QueryIntAttribute("loopFade", &loopFade);
+
+                wave_reader_error error = WR_NO_ERROR;
+                wave_reader* wr = wave_reader_open(fullPath.c_str(), &error);
+                if (error != WR_NO_ERROR) {
+                    printf("Failed to open: %s\n", fullPath.c_str());
+                    return error;
+                }
+
+                int format = wave_reader_get_format(wr);
+                int nChannels = wave_reader_get_num_channels(wr);
+                int rate = wave_reader_get_sample_rate(wr);
+                int nSamples = wave_reader_get_num_samples(wr);
+
+                if (format != 1 || nChannels != 1 || !(rate == 22050 || rate == 44100)) {
+                    printf("Input '%s' must be 22050/44100 Hz Mono, freq=%d channels=%d\n", fname, rate, nChannels);
+                    return 100;
+                }
+
+                int16_t* data = new int16_t[nSamples + 1];  // allocate extra in case we need to tack on.
+                wave_reader_get_samples(wr, nSamples, data);
+                if (rate == 44100) {
+                    data = covert44to22(nSamples, data, &nSamples);
+                }
+                if (nSamples & 1) {
+                    data[nSamples] = data[nSamples - 1];
+                    nSamples++;
+                }
+
+                int32_t err = 0;
+                int table = 0;
+                int32_t bestE = INT32_MAX;
+                uint8_t* compressed = new uint8_t[nSamples];
+                uint32_t nCompressed;
+
+                for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
+                    int32_t error = 0;
+                    wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
+
+                    if (error < bestE) {
+                        bestE = error;
+                        table = i;
+                    }
+                }
+
+                int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
+                if (post) {
+                    std::string f = postPath + fname;
+                    saveOut(f.c_str(), stereo, nSamples);
+                }
+                image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
+
+                delete[] compressed;
+                delete[] data;
+                delete[] stereo;
+                wave_reader_close(wr);
+            }
         }
     }
 
