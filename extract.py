@@ -64,9 +64,11 @@ extract_type(INPUT_FILE, ZIP_PATH + "/swingh/", IN_PATH)
 extract_type(INPUT_FILE, ZIP_PATH + "/swingl/", IN_PATH)
 
 if GEN_XML:
+    leaf_name = INPUT_FILE[INPUT_FILE.rfind('/') + 1:]
+
     xml_fp = open("./fonts/" + FONT_NAME + ".xml", "w")
     xml_fp.write('<?xml version="1.0" encoding="utf-8"?>\n' +
-                 '<Image path="' + INPUT_FILE + '" zip="' + ZIP_PATH + '">\n' + 
+                 '<Image path="' + leaf_name + '" zip="' + ZIP_PATH + '">\n' + 
                  '  <Directory name="' + FONT_NAME + '" path="./out/' + FONT_NAME + '" post="./post/' + FONT_NAME + '">\n')
 
 # sox ./fonts/in/vaderanh/hum01.wav -b 16 -c 1 -r 22050 ./fonts/out/vaderanh/hum01.wav lowpass 10000
