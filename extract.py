@@ -1,4 +1,4 @@
-# extract.py name input/zip/file zip/path path/to/sox.exe [xml]
+# extract.py name input/zip/file zip/path [xml]
 
 from genericpath import isdir
 import shutil
@@ -42,22 +42,31 @@ IN_PATH = './fonts/in/' + FONT_NAME
 OUT_PATH = './fonts/out/' + FONT_NAME
 POST_PATH = './fonts/post/' + FONT_NAME
 
+if not os.path.isdir("fonts"):
+    os.mkdir("fonts")
+if not os.path.isdir("fonts/in"):
+    os.mkdir("fonts/in")
+if not os.path.isdir("fonts/out"):
+    os.mkdir("fonts/out")
+if not os.path.isdir("fonts/post"):
+    os.mkdir("fonts/post")
+
 setup_dir(IN_PATH)
 setup_dir(OUT_PATH)
 setup_dir(POST_PATH)
 
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/blst/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/clsh/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/hum/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/out/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/in/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/swingh/", IN_PATH)
-extract_type(INPUT_FILE, ZIP_PATH + "/Proffie/swingl/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/blst/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/clsh/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/hum/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/out/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/in/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/swingh/", IN_PATH)
+extract_type(INPUT_FILE, ZIP_PATH + "/swingl/", IN_PATH)
 
 if GEN_XML:
     xml_fp = open("./fonts/" + FONT_NAME + ".xml", "w")
     xml_fp.write('<?xml version="1.0" encoding="utf-8"?>\n' +
-                 '<Image>\n' + 
+                 '<Image path="' + INPUT_FILE + '" zip="' + ZIP_PATH + '">\n' + 
                  '  <Directory name="' + FONT_NAME + '" path="./out/' + FONT_NAME + '" post="./post/' + FONT_NAME + '">\n')
 
 # sox ./fonts/in/vaderanh/hum01.wav -b 16 -c 1 -r 22050 ./fonts/out/vaderanh/hum01.wav lowpass 10000

@@ -275,6 +275,7 @@ std::string stdString(const char* p)
 int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile)
 {
     MemImageUtil image;
+    std::string imageFileName;
 
     for (const std::string& filename : files) {
         XMLDocument doc;
@@ -302,6 +303,11 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                 postPath = post;
                 postPath.append("/");
             }
+
+            if (!imageFileName.empty()) {
+                imageFileName += "_";
+            }
+            imageFileName += fontName;
 
             for (const XMLElement* fileElement = dirElement->FirstChildElement();
                 fileElement;
@@ -381,8 +387,9 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
 
     image.dumpConsole();
-    image.write("memimage.bin");
-    if (textFile)
-        image.writeText("memimage.txt");
+    //image.write("memimage.bin");
+    if (textFile) {
+        image.writeText((imageFileName + ".txt").c_str());
+    }
     return 0;
 }
