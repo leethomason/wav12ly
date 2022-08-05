@@ -76,7 +76,7 @@ for root, dirs, files in os.walk(IN_PATH):
         out_path = OUT_PATH + "/" + name
         #print(in_path + " -> " + out_path)
 
-        cmd = "sox.exe " + in_path + " -b 16 -c 1 -r 22050 " + out_path + " lowpass 10000"
+        cmd = "sox.exe " + in_path + " -b 16 -c 1 -r 22050 " + out_path + " lowpass 10000 fade 0.001 -0 0.003"
         #print(cmd)
         os.system(cmd)
         if GEN_XML:

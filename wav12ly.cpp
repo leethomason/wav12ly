@@ -251,8 +251,47 @@ bool runTest(wave_reader* wr, int compressBits)
     int rate = wave_reader_get_sample_rate(wr);
     int nSamples = wave_reader_get_num_samples(wr);
 
-    int16_t* data = new int16_t[nSamples];
+    int16_t* data = new int16_t[nSamples + 1];
     wave_reader_get_samples(wr, nSamples, data);
+    if (nSamples & 1) {
+        // Force to even.
+        data[nSamples] = data[nSamples - 1];
+        ++nSamples;
+    }
+
+    if (nChannels != 1 || rate != 22050) {
+        printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
+    }
+
+    // Compression
+    uint32_t nCompressed = 0;
+    uint8_t* compressed = new uint8_t[nSamples];
+    int32_t error = 0;
+    ExpanderAD4::compress(4, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+
+    // Decompress
+    MemStream memStream0(compressed, nCompressed);
+    memStream0.set(0, nCompressed);
+    ExpanderAD4 expander;
+    expander.init(&memStream0, 4, 0);
+    int volume = 256;
+
+    int32_t* stereo = new int32_t[nSamples * 2];
+    const bool LOOP = false;
+    ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
+
+    const int32_t SHIFT = 65536;
+
+    printf("First 4: %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
+        data[0], data[1], data[2], data[3],
+        stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT);
+    printf("Last 4:  %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
+        data[nSamples-4], data[nSamples-3], data[nSamples-2], data[nSamples-1],
+        stereo[nSamples*2 - 8] / SHIFT, stereo[nSamples*2 - 6] / SHIFT, stereo[nSamples*2 - 4] / SHIFT, stereo[nSamples*2 - 2] / SHIFT);
+
+    delete[] data;
+    delete[] compressed;
+    delete[] stereo;
 
     return true;
 }
