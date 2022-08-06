@@ -23,7 +23,7 @@ extern "C" {
 using namespace wav12;
 using namespace tinyxml2;
 
-bool runTest(wave_reader* wr, int compressBits);
+bool runTest(wave_reader* wr);
 int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile);
 
 static const float M_PI = 3.14f;
@@ -235,7 +235,7 @@ int main(int argc, const char* argv[])
     }
 
     printf("Running basic tests on '%s'\n", argv[1]);
-    runTest(wr, 8);
+    runTest(wr);
     wave_reader_close(wr);
     return 0;
 }
@@ -267,7 +267,7 @@ int rotateZero(int16_t* data, int nSamples)
     return zero;
 }
 
-bool runTest(wave_reader* wr, int compressBits)
+bool runTest(wave_reader* wr)
 {
     const int format = wave_reader_get_format(wr);
     const int nChannels = wave_reader_get_num_channels(wr);
@@ -276,13 +276,17 @@ bool runTest(wave_reader* wr, int compressBits)
 
     int16_t* data = new int16_t[nSamples + 1];
     wave_reader_get_samples(wr, nSamples, data);
+
+    int bestTable = 0;
+    int bestError = INT_MAX;
+
     if (nSamples & 1) {
         // Force to even.
         data[nSamples] = data[nSamples - 1];
         ++nSamples;
     }
-    int z = rotateZero(data, nSamples);
-    printf("rotate: %d\n", z);
+//    int z = rotateZero(data, nSamples);
+//    printf("rotate: %d\n", z);
 
     if (nChannels != 1 || rate != 22050) {
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
@@ -318,19 +322,25 @@ bool runTest(wave_reader* wr, int compressBits)
             stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
         printf("Table=%d Error: %d\n", t, error);
 
-        /*
-        saveOut("testPost.wav", stereo, nSamples);
-
-        int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
-        for (int i = 0; i < 4; ++i) {
-            memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+        if (error < bestError) {
+            bestError = error;
+            bestTable = t;
         }
-        saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
-        delete[] loopStereo;
-        */
+
+        if (t == 0) {
+            saveOut("testPost.wav", stereo, nSamples);
+
+            int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+            for (int i = 0; i < 4; ++i) {
+                memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+            }
+            saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+            delete[] loopStereo;
+        }
         delete[] compressed;
         delete[] stereo;
     }
+    printf("Best table=%d error=%d", bestTable, bestError);
     delete[] data;
     return true;
 }
@@ -373,6 +383,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 {
     MemImageUtil image;
     std::string imageFileName;
+    int64_t totalError = 0;
 
     for (const std::string& filename : files) {
         XMLDocument doc;
@@ -494,6 +505,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                             table = i;
                         }
                     }
+                    totalError += bestE * nSamples;
 
                     int32_t* stereo = compressAndTest(data, nSamples, table, compressed, &nCompressed, &err);
                     if (post) {
@@ -512,6 +524,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
 
     image.dumpConsole();
+    printf("TotalError = %lld\n", totalError / 1'000'000);
     //image.write("memimage.bin");
     if (textFile) {
         image.writeText((imageFileName + ".txt").c_str());
