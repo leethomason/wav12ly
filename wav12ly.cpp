@@ -532,6 +532,8 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     return 0;
 }
 
+// bit4: TotalError = 5368
+
 /*
 --> ob4.xml hero.xml config_blue.xml 
 
