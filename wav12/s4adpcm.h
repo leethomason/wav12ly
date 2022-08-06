@@ -140,4 +140,5 @@ private:
 public:
     static const int N_TABLES = 4;
     static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
+    static const int STEP[16];
 };

@@ -281,8 +281,8 @@ bool runTest(wave_reader* wr, int compressBits)
         data[nSamples] = data[nSamples - 1];
         ++nSamples;
     }
-    //int z = rotateZero(data, nSamples);
-    //printf("rotate: %d\n", z);
+    int z = rotateZero(data, nSamples);
+    printf("rotate: %d\n", z);
 
     if (nChannels != 1 || rate != 22050) {
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
@@ -313,6 +313,7 @@ bool runTest(wave_reader* wr, int compressBits)
     printf("Last 4:  %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
         data[nSamples-4], data[nSamples-3], data[nSamples-2], data[nSamples-1],
         stereo[nSamples*2 - 8] / SHIFT, stereo[nSamples*2 - 6] / SHIFT, stereo[nSamples*2 - 4] / SHIFT, stereo[nSamples*2 - 2] / SHIFT);
+    printf("Error: %d\n", error);
 
     saveOut("testPost.wav", stereo, nSamples);
 
