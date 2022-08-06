@@ -269,9 +269,9 @@ int rotateZero(int16_t* data, int nSamples)
 
 bool runTest(wave_reader* wr, int compressBits)
 {
-    int format = wave_reader_get_format(wr);
-    int nChannels = wave_reader_get_num_channels(wr);
-    int rate = wave_reader_get_sample_rate(wr);
+    const int format = wave_reader_get_format(wr);
+    const int nChannels = wave_reader_get_num_channels(wr);
+    const int rate = wave_reader_get_sample_rate(wr);
     int nSamples = wave_reader_get_num_samples(wr);
 
     int16_t* data = new int16_t[nSamples + 1];
@@ -287,47 +287,51 @@ bool runTest(wave_reader* wr, int compressBits)
     if (nChannels != 1 || rate != 22050) {
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
     }
+    
+    for (int t = 0; t < S4ADPCM::N_TABLES; ++t) {
+        // Compression
+        uint32_t nCompressed = 0;
+        uint8_t* compressed = new uint8_t[nSamples];
+        int32_t error = 0;
+        const int* table = S4ADPCM::getTable(t);
+        ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, table, &error);
 
-    // Compression
-    uint32_t nCompressed = 0;
-    uint8_t* compressed = new uint8_t[nSamples];
-    int32_t error = 0;
-    ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
+        // Decompress
+        MemStream memStream0(compressed, nCompressed);
+        memStream0.set(0, nCompressed);
+        ExpanderAD4 expander;
+        expander.init(&memStream0, t);
+        const int volume = 256;
 
-    // Decompress
-    MemStream memStream0(compressed, nCompressed);
-    memStream0.set(0, nCompressed);
-    ExpanderAD4 expander;
-    expander.init(&memStream0, 0);
-    int volume = 256;
+        int32_t* stereo = new int32_t[nSamples * 2];
+        const bool LOOP = false;
+        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
 
-    int32_t* stereo = new int32_t[nSamples * 2];
-    const bool LOOP = false;
-    ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
+        const int32_t SHIFT = 65536;
 
-    const int32_t SHIFT = 65536;
+        printf("          First:               Last:\n");
+        printf("In  : %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+            data[0], data[1], data[2], data[3],
+            data[nSamples - 4], data[nSamples - 3], data[nSamples - 2], data[nSamples - 1]);
+        printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+            stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
+            stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
+        printf("Table=%d Error: %d\n", t, error);
 
-    printf("First 4: %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
-        data[0], data[1], data[2], data[3],
-        stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT);
-    printf("Last 4:  %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
-        data[nSamples-4], data[nSamples-3], data[nSamples-2], data[nSamples-1],
-        stereo[nSamples*2 - 8] / SHIFT, stereo[nSamples*2 - 6] / SHIFT, stereo[nSamples*2 - 4] / SHIFT, stereo[nSamples*2 - 2] / SHIFT);
-    printf("Error: %d\n", error);
+        /*
+        saveOut("testPost.wav", stereo, nSamples);
 
-    saveOut("testPost.wav", stereo, nSamples);
-
-    int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
-    for (int i = 0; i < 4; ++i) {
-        memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+        int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+        for (int i = 0; i < 4; ++i) {
+            memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+        }
+        saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+        delete[] loopStereo;
+        */
+        delete[] compressed;
+        delete[] stereo;
     }
-    saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
-
-    delete[] loopStereo;
     delete[] data;
-    delete[] compressed;
-    delete[] stereo;
-
     return true;
 }
 
@@ -588,3 +592,12 @@ Overall ratio= 0.25
 Image size=1844953 bytes, 1801 k
 Directory name hash=fa135ec3
 */
+
+/*
+Format = 1 channels = 1 rate = 22050
+Running basic tests on 'hum01.wav'
+rotate: 246413
+First 4 : -7 - 1     10     58  Post : -7 - 2     11     52
+Last 4 : 51      1     11      1  Post : 54      4     10     16
+Error : 202
+*/  

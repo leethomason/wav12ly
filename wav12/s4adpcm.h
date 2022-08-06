@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #if defined(_MSC_VER)
 #   include <assert.h>
@@ -59,6 +60,8 @@
 class S4ADPCM
 {
 public:
+    static const int ZERO_INDEX = 8;
+
     struct State {
         bool high = false;
         int32_t prev2 = 0;
@@ -67,15 +70,23 @@ public:
         int32_t volumeShifted = 0;
         int32_t volumeTarget = 0;
 
-        int guess() const {
-            int g = 2 * prev1 - prev2;
-            if (g > SHRT_MAX) g = SHRT_MAX;
-            if (g < SHRT_MIN) g = SHRT_MIN;
+        int32_t guess() const {
+            int32_t g = 2 * prev1 - prev2;
             return g;
         }
-        void push(int value) {
+        void push(int32_t value) {
             prev2 = prev1;
             prev1 = value;
+        }
+
+        void doShift(const int* table, int index) {
+            W12ASSERT(index >= 0 && index < 16);
+
+            int delta = abs(index - ZERO_INDEX); // -8 to 7 -> 0 - 8
+            int slide = table[delta];
+            shift += slide;
+            if (shift < 0) shift = 0;
+            if (shift > SHIFT_LIMIT_4) shift = SHIFT_LIMIT_4;
         }
     };
 
@@ -88,6 +99,7 @@ public:
 
     static const int TABLE_SIZE = 9;
     static const int* getTable(int i) {
+        assert(i >= 0 && i < N_TABLES);
         return DELTA_TABLE_4[i];
     }
 

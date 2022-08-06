@@ -21,7 +21,6 @@
 */
 
 #include "s4adpcm.h"
-#include <stdlib.h>
 
 const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
     {-1, 0, 0, 0, 0, 1, 1, 2, 2},
@@ -36,29 +35,31 @@ const int S4ADPCM::STEP[16] = {
     -8, -7, -6, -5, -4, -3, -2, -1,
     // 0..7
     //0, 1, 2, 4, 8, 12, 16, 24
-    0, 1, 2, 3, 4, 5, 6, 6
+    0, 1, 2, 3, 4, 5, 6, 7
 };
+
 
 int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int32_t* err)
 {
+    W12ASSERT(STEP[ZERO_INDEX] == 0);
+        
     int64_t err12Squared = 0;
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
-        int value = data[i];
-        int guess = state->guess();
+        int32_t value = data[i];
+        int32_t guess = state->guess();
 
         // Bias up so we round up and down equally.
-        int mult = 1 << state->shift;
+        int32_t mult = 1 << state->shift;
 
         // Search for minimum error.
         int bestE = 100000;
         uint8_t index = 8;  // zero index
         for (int j = 0; j < 16; ++j) {
-            int s = guess + mult * STEP[j];
-            int e = abs(s - value);
+            int32_t s = guess + mult * STEP[j];
+            int32_t e = abs(s - value);
 
-            // enforce staying in range here!
-            if (s <= SHRT_MAX && s >= SHRT_MIN && e < bestE) {
+            if (e < bestE) {
                 bestE = e;
                 index = j;
                 if (e == 0) break;
@@ -69,21 +70,14 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         else
             *target = index;
 
-        state->high = !state->high;
-
-        int p = guess + (STEP[index] << state->shift);
-        W12ASSERT(p >= SHRT_MIN && p <= SHRT_MAX);
-
+        int32_t p = guess + STEP[index] * mult;
         state->push(p);
 
         int64_t err = int64_t(value) - int64_t(p);
         err12Squared += err * err;
 
-        // Note that the shift is based on the *index* not the value.
-        int delta = int(index) - 8;
-        state->shift += table[delta >= 0 ? delta : -delta];
-        if (state->shift < 0) state->shift = 0;
-        if (state->shift > SHIFT_LIMIT_4) state->shift = SHIFT_LIMIT_4;
+        state->doShift(table, index);
+        state->high = !state->high;
     }
     if (err) {
         *err = int32_t(err12Squared / nSamples);
@@ -97,6 +91,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
     bool add,
     int32_t* out, State* state, const int* table)
 {
+    W12ASSERT(STEP[ZERO_INDEX] == 0);
     state->volumeTarget = volume << 8;
 
     for (int32_t i = 0; i < nSamples; ++i) {
@@ -109,9 +104,9 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
             index = *p & 0xf;
         }
         int32_t mult = 1 << state->shift;
-        int32_t value = state->guess() + STEP[index] * mult;
+        int32_t guess = state->guess();
+        int32_t value = guess + STEP[index] * mult;
 
-        W12ASSERT(value >= SHRT_MIN && value <= SHRT_MAX);
         state->push(value);
 
         if (state->volumeShifted < state->volumeTarget)
@@ -119,14 +114,14 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
         else if (state->volumeShifted > state->volumeTarget)
             state->volumeShifted -= VOLUME_EASING;
 
-        int32_t s = scaleVol(value, state->volumeShifted);
+        int32_t valueClipped = value;
+        if (valueClipped > SHRT_MAX) valueClipped = SHRT_MAX;
+        if (valueClipped < SHRT_MIN) valueClipped = SHRT_MIN;
+        int32_t s = scaleVol(valueClipped, state->volumeShifted);
         out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;
 
-        int delta = int(index) - 8;
-        state->shift += table[delta >= 0 ? delta : -delta];
-        if (state->shift < 0) state->shift = 0;
-        if (state->shift > SHIFT_LIMIT_4) state->shift = SHIFT_LIMIT_4;
+        state->doShift(table, index);
         state->high = !state->high;
     }
 }
