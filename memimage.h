@@ -43,7 +43,6 @@ public:
     ~MemImageUtil();
 
     void addDir(const char* name);
-    // MSE just used for debugging output.
     void addFile(const char* name, void* data, int size, bool use8Bit, int table, int64_t e12);
     void addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b);
     void dumpConsole();
