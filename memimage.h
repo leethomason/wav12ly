@@ -19,6 +19,15 @@ struct MemUnit {
 
 static_assert(sizeof(MemUnit) == 16, "16 byte MemUnit");
 
+struct ConfigUnit {
+    char name[MemUnit::NAME_LEN];
+    uint8_t soundFont, bc_r, bc_b, bc_g;
+    uint8_t ic_r, ic_b, ic_g, reserve;
+};
+
+static_assert(sizeof(ConfigUnit) == 16, "16 byte ConfigUnit");
+static_assert(sizeof(ConfigUnit) == sizeof(MemUnit), "MemUnit and ConfigUnit should be the same size");
+
 struct MemImage {
     static const int NUM_DIR = 4;
     static const int NUM_FILES = 60;
@@ -36,6 +45,7 @@ public:
     void addDir(const char* name);
     // MSE just used for debugging output.
     void addFile(const char* name, void* data, int size, bool use8Bit, int table, int64_t e12);
+    void addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b);
     void dumpConsole();
 
     void write(const char* name);

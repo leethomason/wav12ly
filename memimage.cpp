@@ -61,6 +61,28 @@ void MemImageUtil::addFile(const char* name, void* data, int size, bool use8Bit,
 }
 
 
+void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b)
+{
+    assert(numDir > 0);
+    MemImage* image = (MemImage*)dataVec;
+    assert(image->unit[numDir - 1].name == "config");
+    int index = MemImage::NUM_DIR + numFile;
+    ConfigUnit* config = (ConfigUnit*)&image->unit[index];
+    config->soundFont = font;
+    
+    config->bc_r = bc_r;
+    config->bc_g = bc_g;
+    config->bc_b = bc_b;
+
+    config->ic_r = ic_r;
+    config->ic_g = ic_g;
+    config->ic_b = ic_b;
+
+    numFile++;
+}
+
+
+
 void MemImageUtil::write(const char* name)
 {
     FILE* fp = fopen(name, "wb");
