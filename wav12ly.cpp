@@ -348,6 +348,25 @@ std::string stdString(const char* p)
 }
 
 
+uint8_t ParseOneHex(char c)
+{
+    c = tolower(c);
+    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    return c - '0';
+}
+
+uint8_t ParseOneHex(const char* in)
+{
+    return ParseOneHex(in[0]) * 16 + ParseOneHex(in[1]);
+}
+
+void ParseHex(const char* in, uint8_t* r, uint8_t* g, uint8_t* b)
+{
+    *r = ParseOneHex(in + 0);
+    *g = ParseOneHex(in + 2);
+    *b = ParseOneHex(in + 4);
+}
+
 int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile)
 {
     MemImageUtil image;
@@ -362,16 +381,27 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
             return 1;
         }
 
-        if (strcmp(doc.RootElement()->Name(), "Config") == 0) {
+        const char* rootName = doc.RootElement()->Name();
+        if (rootName && strcmp(rootName, "Config") == 0) {
 
             image.addDir("config");
+            int nPalette = 0;
 
-            for (const XMLElement* palElement = doc.RootElement()->FirstChildElement();
+            for (const XMLElement* palElement = doc.RootElement()->FirstChildElement("Palette");
                 palElement;
-                palElement = palElement->NextSiblingElement())
+                palElement = palElement->NextSiblingElement("Palette"))
             {
-
+                ++nPalette;
+                int font = 0;
+                palElement->QueryIntAttribute("font", &font);
+                uint8_t bc_r, bc_g, bc_b, ic_r, ic_g, ic_b;
+                const char* bc = palElement->Attribute("bc");
+                const char* ic = palElement->Attribute("ic");
+                ParseHex(bc, &bc_r, &bc_g, &bc_b);
+                ParseHex(ic, &ic_r, &ic_g, &ic_b);
+                image.addConfig(font, bc_r, bc_g, bc_b, ic_r, ic_g, ic_b);
             }
+            assert(nPalette == 8);
         }
         else {
             for (const XMLElement* dirElement = doc.RootElement()->FirstChildElement();

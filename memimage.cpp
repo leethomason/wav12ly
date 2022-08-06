@@ -65,7 +65,7 @@ void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t b
 {
     assert(numDir > 0);
     MemImage* image = (MemImage*)dataVec;
-    assert(image->unit[numDir - 1].name == "config");
+    assert(memcmp(image->unit[numDir - 1].name, "config", 6) == 0);
     int index = MemImage::NUM_DIR + numFile;
     ConfigUnit* config = (ConfigUnit*)&image->unit[index];
     config->soundFont = font;
@@ -117,7 +117,17 @@ void MemImageUtil::dumpConsole()
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
 
-        if (image->unit[d].name[0]) {
+        if (memcmp("config", image->unit[d].name, 6) == 0) {
+            printf("config\n");
+            for (unsigned f = 0; f < 8; ++f) {
+                int index = image->unit[d].offset + f;
+                const ConfigUnit* cu = (ConfigUnit*) &image->unit[index];
+                printf("  font=%d bc=%02x%02x%02x ic=%02x%02x%02x\n",
+                    cu->soundFont,
+                    cu->bc_r, cu->bc_g, cu->bc_b,
+                    cu->ic_r, cu->ic_g, cu->ic_b);
+            }
+        } else if (image->unit[d].name[0]) {
             char dirName[9] = { 0 };
             strncpy(dirName, image->unit[d].name, 8);
             printf("Dir: %s\n", dirName);
