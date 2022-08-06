@@ -33,9 +33,6 @@
 #   define W12ASSERT
 #endif
 
-static const int S4ADPCM_4BIT = 4;
-static const int S4ADPCM_8BIT = 8;
-
 /* 
     A 4-bit ADPCM encoder/decoder. It is not any of the "official" ADPCM codecs.
     It is very very simple, and surprisingly good quality. It was tuned on
@@ -63,12 +60,12 @@ class S4ADPCM
 {
 public:
     struct State {
-        int prev2 = 0;
-        int prev1 = 0;
-        int shift = 0;
         bool high = false;
-        int volumeShifted = 0;
-        int volumeTarget = 0;
+        int32_t prev2 = 0;
+        int32_t prev1 = 0;
+        int32_t shift = 0;
+        int32_t volumeShifted = 0;
+        int32_t volumeTarget = 0;
 
         int guess() const {
             int g = 2 * prev1 - prev2;
@@ -85,28 +82,17 @@ public:
     static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table, int32_t* aveErrSquared);
     static void decode4(const uint8_t *compressed,
                         int32_t nSamples,
-                        int volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
-                        bool add,   // if true, add to the 'data' buffer, else write to it
-                        int32_t *samples, State *state, const int *table);
-
-    static void encode8(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table, int32_t* aveErrSquared);
-    static void decode8(const uint8_t *compressed,
-                        int32_t nSamples,
-                        int volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
+                        int32_t volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
                         bool add,   // if true, add to the 'data' buffer, else write to it
                         int32_t *samples, State *state, const int *table);
 
     static const int TABLE_SIZE = 9;
-    static const int* getTable(int bits, int i) {
-        assert(i >= 0 && i < N_TABLES);
-        assert(bits == 8 || bits == 4);
-        if (bits == 8) return DELTA_TABLE_8[i];
+    static const int* getTable(int i) {
         return DELTA_TABLE_4[i];
     }
 
 private:
     static const int SHIFT_LIMIT_4 = 12;
-    static const int SHIFT_LIMIT_8 = 8;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
 
     static int64_t calcError(int value, int p) 
@@ -154,5 +140,4 @@ private:
 public:
     static const int N_TABLES = 4;
     static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
-    static const int DELTA_TABLE_8[N_TABLES][TABLE_SIZE];
 };

@@ -56,80 +56,77 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
 {
     const int SIZE[4] = { 16, 32, 64, 128 };
 
-    for (int codec = 4; codec <= 8; codec += 4) {
-        for (int s = 0; s < 4; ++s) {
-            for (int loop = 0; loop <= 1; ++loop) {
-                for (int nChannels = 1; nChannels <= 2; ++nChannels) {
+    for (int s = 0; s < 4; ++s) {
+        for (int loop = 0; loop <= 1; ++loop) {
+            for (int nChannels = 1; nChannels <= 2; ++nChannels) {
 
-                    int targetSize = SIZE[s];
+                int targetSize = SIZE[s];
 
-                    // Construct a buf & wrapping buf to dectect overrun
-                    int32_t* outBuf = new int32_t[targetSize * 2 + 2];
-                    int32_t* stereo = outBuf + 1;
-                    outBuf[0] = 37;
-                    outBuf[1 + targetSize * 2] = 53;
-                    for (int i = 0; i < targetSize; ++i) {
-                        stereo[i * 2 + 0] = -111;
-                        stereo[i * 2 + 1] = 112;
-                    }
-
-                    // Compression
-                    uint32_t nCompressed = 0;
-                    uint8_t* compressed = new uint8_t[nSamplesIn];
-                    int32_t error = 0;
-                    ExpanderAD4::compress(codec, samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(codec, 0), &error);
-
-                    // Decompress
-                    MemStream memStream0(compressed, nCompressed);
-                    MemStream memStream1(compressed, nCompressed);
-                    memStream0.set(0, nCompressed);
-                    memStream1.set(0, nCompressed);
-                    ExpanderAD4 expander[2];
-                    expander[0].init(&memStream0, codec, 0);
-                    expander[1].init(&memStream1, codec, 0);
-
-                    bool loopArr[2] = { loop > 0, loop > 0 };
-                    int volume[2] = { 256, 256 };
-                    ExpanderAD4::fillBuffer(stereo, targetSize, expander, nChannels, loopArr, volume, true);
-
-                    // Verify
-                    // Memory overrun:
-                    W12ASSERT(outBuf[0] == 37);
-                    W12ASSERT(outBuf[1 + targetSize * 2] == 53);
-                    // Verify trend, but not sound quality
-                    int localT = tolerance * nChannels;
-                    if (codec == 8) localT *= 2;
-
-                    if (loop) {
-                        for (int i = 0; i < targetSize; i++) {
-                            int srcIndex = i % nSamplesIn;
-                            if (srcIndex > 0) {
-                                int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
-                                int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
-                                W12ASSERT(abs(deltaOut - deltaIn) < localT);
-                            }
-                        }
-                    }
-                    else {
-                        int nCheck = nSamplesIn <= targetSize ? nSamplesIn : targetSize;
-                        for (int i = 0; i < nCheck; i++) {
-                            int srcIndex = i;
-                            if (srcIndex > 0) {
-                                int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
-                                int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
-                                W12ASSERT(abs(deltaOut - deltaIn) < localT);
-                            }
-                        }
-                        for (int i = nCheck; i < targetSize; ++i) {
-                            W12ASSERT(stereo[i * 2 + 0] == 0);
-                            W12ASSERT(stereo[i * 2 + 1] == 0);
-                        }
-                    }
-
-                    // Free resources
-                    delete[] outBuf;
-                    delete[] compressed;
+                // Construct a buf & wrapping buf to dectect overrun
+                int32_t* outBuf = new int32_t[targetSize * 2 + 2];
+                int32_t* stereo = outBuf + 1;
+                outBuf[0] = 37;
+                outBuf[1 + targetSize * 2] = 53;
+                for (int i = 0; i < targetSize; ++i) {
+                    stereo[i * 2 + 0] = -111;
+                    stereo[i * 2 + 1] = 112;
                 }
+
+                // Compression
+                uint32_t nCompressed = 0;
+                uint8_t* compressed = new uint8_t[nSamplesIn];
+                int32_t error = 0;
+                ExpanderAD4::compress(samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
+
+                // Decompress
+                MemStream memStream0(compressed, nCompressed);
+                MemStream memStream1(compressed, nCompressed);
+                memStream0.set(0, nCompressed);
+                memStream1.set(0, nCompressed);
+                ExpanderAD4 expander[2];
+                expander[0].init(&memStream0, 0);
+                expander[1].init(&memStream1, 0);
+
+                bool loopArr[2] = { loop > 0, loop > 0 };
+                int volume[2] = { 256, 256 };
+                ExpanderAD4::fillBuffer(stereo, targetSize, expander, nChannels, loopArr, volume, true);
+
+                // Verify
+                // Memory overrun:
+                W12ASSERT(outBuf[0] == 37);
+                W12ASSERT(outBuf[1 + targetSize * 2] == 53);
+                // Verify trend, but not sound quality
+                int localT = tolerance * nChannels;
+
+                if (loop) {
+                    for (int i = 0; i < targetSize; i++) {
+                        int srcIndex = i % nSamplesIn;
+                        if (srcIndex > 0) {
+                            int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
+                            int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
+                            W12ASSERT(abs(deltaOut - deltaIn) < localT);
+                        }
+                    }
+                }
+                else {
+                    int nCheck = nSamplesIn <= targetSize ? nSamplesIn : targetSize;
+                    for (int i = 0; i < nCheck; i++) {
+                        int srcIndex = i;
+                        if (srcIndex > 0) {
+                            int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
+                            int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
+                            W12ASSERT(abs(deltaOut - deltaIn) < localT);
+                        }
+                    }
+                    for (int i = nCheck; i < targetSize; ++i) {
+                        W12ASSERT(stereo[i * 2 + 0] == 0);
+                        W12ASSERT(stereo[i * 2 + 1] == 0);
+                    }
+                }
+
+                // Free resources
+                delete[] outBuf;
+                delete[] compressed;
             }
         }
     }
@@ -143,7 +140,7 @@ void generateTest()
     //int16_t* samples = new int16_t[NSAMPLES];
     ExpanderAD4::generateTestData(NSAMPLES, samples);
     uint8_t compressed[NSAMPLES / 2];
-    const int* table = S4ADPCM::getTable(4, 0);
+    const int* table = S4ADPCM::getTable(0);
     int32_t err = 0;
 
     S4ADPCM::State state;
@@ -295,13 +292,13 @@ bool runTest(wave_reader* wr, int compressBits)
     uint32_t nCompressed = 0;
     uint8_t* compressed = new uint8_t[nSamples];
     int32_t error = 0;
-    ExpanderAD4::compress(4, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+    ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
 
     // Decompress
     MemStream memStream0(compressed, nCompressed);
     memStream0.set(0, nCompressed);
     ExpanderAD4 expander;
-    expander.init(&memStream0, 4, 0);
+    expander.init(&memStream0, 0);
     int volume = 256;
 
     int32_t* stereo = new int32_t[nSamples * 2];
@@ -441,8 +438,6 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     fullPath += '/';
                     fullPath += fname;
 
-                    int bits = 4;
-                    fileElement->QueryIntAttribute("compression", &bits);
                     int loopFade = 0;
                     fileElement->QueryIntAttribute("loopFade", &loopFade);
                     bool rotateToZero = false;
@@ -487,7 +482,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
                         int32_t error = 0;
-                        wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
+                        wav12::ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(i), &error);
 
                         if (error < bestE) {
                             bestE = error;
@@ -495,12 +490,12 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                         }
                     }
 
-                    int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
+                    int32_t* stereo = compressAndTest(data, nSamples, table, compressed, &nCompressed, &err);
                     if (post) {
                         std::string f = postPath + fname;
                         saveOut(f.c_str(), stereo, nSamples);
                     }
-                    image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
+                    image.addFile(stdfname.c_str(), compressed, nCompressed, table, err);
 
                     delete[] compressed;
                     delete[] data;
@@ -518,3 +513,77 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
     return 0;
 }
+
+/*
+--> ob4.xml hero.xml config_blue.xml 
+
+hum01.wav rotated 94443 samples.
+hum01.wav rotated 59017 samples.
+Dir: ob4
+     blst01 at     1024 size= 12917 ( 12k) table=2 ave-err=  741.8
+     blst02 at    13941 size= 16664 ( 16k) table=0 ave-err=  862.2
+     blst03 at    30605 size= 20994 ( 20k) table=2 ave-err=  742.6
+     blst05 at    51599 size= 16816 ( 16k) table=0 ave-err=  766.3
+     blst06 at    68415 size= 12855 ( 12k) table=0 ave-err=  818.9
+     clsh01 at    81270 size= 12391 ( 12k) table=0 ave-err=  992.8
+     clsh02 at    93661 size= 11025 ( 10k) table=1 ave-err= 1012.5
+     clsh03 at   104686 size= 14724 ( 14k) table=0 ave-err=  911.8
+     clsh04 at   119410 size= 11714 ( 11k) table=0 ave-err=  810.5
+     clsh05 at   131124 size= 11025 ( 10k) table=0 ave-err=  978.7
+     clsh06 at   142149 size= 11025 ( 10k) table=1 ave-err=  995.2
+     clsh07 at   153174 size= 11025 ( 10k) table=0 ave-err=  944.1
+     clsh08 at   164199 size= 11779 ( 11k) table=0 ave-err= 1111.6
+      hum01 at   175978 size=234741 (229k) table=0 ave-err=    7.9
+       in01 at   410719 size=  6052 (  5k) table=0 ave-err= 2966.5
+      out01 at   416771 size= 14471 ( 14k) table=1 ave-err= 1007.3
+   swingh01 at   431242 size=140569 (137k) table=0 ave-err=   82.3
+   swingh02 at   571811 size=140569 (137k) table=0 ave-err=   82.0
+   swingl01 at   712380 size=140569 (137k) table=0 ave-err=   81.7
+   swingl02 at   852949 size=140569 (137k) table=0 ave-err=   81.3
+  Dir total=969k
+Dir: hero
+     blst01 at   993518 size=  7816 (  7k) table=1 ave-err=  769.0
+     blst02 at  1001334 size=  5836 (  5k) table=0 ave-err=  864.8
+     blst03 at  1007170 size=  6600 (  6k) table=0 ave-err=  790.4
+     blst04 at  1013770 size=  5701 (  5k) table=0 ave-err=  879.0
+     blst05 at  1019471 size=  7169 (  7k) table=2 ave-err=  977.9
+     blst06 at  1026640 size=  6713 (  6k) table=0 ave-err=  774.7
+     blst07 at  1033353 size=  8526 (  8k) table=0 ave-err=  911.1
+     blst08 at  1041879 size=  7434 (  7k) table=0 ave-err=  841.9
+     clsh01 at  1049313 size=  6432 (  6k) table=1 ave-err= 1643.3
+     clsh02 at  1055745 size=  6399 (  6k) table=1 ave-err= 1249.7
+     clsh03 at  1062144 size=  8711 (  8k) table=2 ave-err= 1148.0
+     clsh04 at  1070855 size=  5698 (  5k) table=1 ave-err=  918.9
+     clsh05 at  1076553 size=  3783 (  3k) table=0 ave-err= 1115.9
+     clsh06 at  1080336 size=  3446 (  3k) table=1 ave-err=  928.3
+     clsh07 at  1083782 size=  4994 (  4k) table=1 ave-err= 1118.8
+     clsh08 at  1088776 size=  5261 (  5k) table=2 ave-err= 1279.8
+     clsh09 at  1094037 size=  5513 (  5k) table=2 ave-err= 1138.4
+     clsh10 at  1099550 size=  5825 (  5k) table=2 ave-err= 1100.0
+     clsh13 at  1105375 size=  5698 (  5k) table=0 ave-err=  956.2
+     clsh14 at  1111073 size=  5913 (  5k) table=1 ave-err= 1354.5
+     clsh15 at  1116986 size=  5513 (  5k) table=1 ave-err= 1293.3
+     clsh16 at  1122499 size=  5577 (  5k) table=1 ave-err= 1147.0
+      hum01 at  1128076 size=140569 (137k) table=0 ave-err=   13.2
+       in01 at  1268645 size=  6432 (  6k) table=1 ave-err= 3981.6
+       in02 at  1275077 size=  6432 (  6k) table=1 ave-err= 4041.9
+      out01 at  1281509 size= 11169 ( 10k) table=1 ave-err= 2465.5
+      out02 at  1292678 size= 11025 ( 10k) table=1 ave-err= 1935.6
+   swingh01 at  1303703 size=159863 (156k) table=0 ave-err=  342.3
+   swingh03 at  1463566 size=132300 (129k) table=0 ave-err=  270.8
+   swingl01 at  1595866 size=126788 (123k) table=0 ave-err=  291.2
+   swingl03 at  1722654 size=121275 (118k) table=0 ave-err=  266.7
+  Dir total=830k
+config
+  font=0 bc=0088ff ic=44ccff
+  font=0 bc=00ff00 ic=00ffa0
+  font=1 bc=c000ff ic=80a080
+  font=1 bc=ff0000 ic=a08000
+  font=1 bc=ff6000 ic=808000
+  font=0 bc=ffff00 ic=00ff88
+  font=1 bc=80a080 ic=30a0a0
+  font=0 bc=00ff44 ic=00ffaa
+Overall ratio= 0.25
+Image size=1844953 bytes, 1801 k
+Directory name hash=fa135ec3
+*/
