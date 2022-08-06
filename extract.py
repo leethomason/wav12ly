@@ -78,11 +78,16 @@ for root, dirs, files in os.walk(IN_PATH):
         out_path = OUT_PATH + "/" + name
         #print(in_path + " -> " + out_path)
 
-        cmd = "sox.exe " + in_path + " -b 16 -c 1 -r 22050 " + out_path + " lowpass 10000 fade 0.001 -0 0.003"
+        # lowpass filter to improve compression
+        # creates an audible drop out:  fade 0.001 -0 0.003
+        cmd = "sox.exe " + in_path + " -b 16 -c 1 -r 22050 " + out_path + " lowpass 10000"
         #print(cmd)
         os.system(cmd)
         if GEN_XML:
-            xml_fp.write('    <File path="' + name + '" />\n')
+            if name.find("hum") >= 0:
+                xml_fp.write('    <File path="' + name + '" looping="true"/>\n')
+            else:
+                xml_fp.write('    <File path="' + name + '" />\n')
 
 if GEN_XML:
     xml_fp.write('  </Directory>\n</Image>\n')

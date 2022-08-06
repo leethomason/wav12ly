@@ -243,6 +243,29 @@ int main(int argc, const char* argv[])
     return 0;
 }
 
+int rotateZero(int16_t* data, int nSamples)
+{
+    int zero = 0;
+    int bestE = INT_MAX;
+    for (int i = 0; i < nSamples; i++) {
+
+        int left = (i + nSamples - 1) % nSamples;
+        int right = (i + 1) % nSamples;
+
+        int e = 2 * abs(data[i]) + abs(data[left]) + abs(data[right]);
+        if (e < bestE) {
+            bestE = e;
+            zero = i;
+        }
+    }
+    int16_t* c = new int16_t[nSamples];
+    memcpy(c, data, nSamples * sizeof(int16_t));
+    for (int i = 0; i < nSamples; i++) {
+        data[i] = c[(i + zero) % nSamples];
+    }
+    delete[] c;
+    return zero;
+}
 
 bool runTest(wave_reader* wr, int compressBits)
 {
@@ -258,6 +281,8 @@ bool runTest(wave_reader* wr, int compressBits)
         data[nSamples] = data[nSamples - 1];
         ++nSamples;
     }
+    //int z = rotateZero(data, nSamples);
+    //printf("rotate: %d\n", z);
 
     if (nChannels != 1 || rate != 22050) {
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
@@ -289,6 +314,15 @@ bool runTest(wave_reader* wr, int compressBits)
         data[nSamples-4], data[nSamples-3], data[nSamples-2], data[nSamples-1],
         stereo[nSamples*2 - 8] / SHIFT, stereo[nSamples*2 - 6] / SHIFT, stereo[nSamples*2 - 4] / SHIFT, stereo[nSamples*2 - 2] / SHIFT);
 
+    saveOut("testPost.wav", stereo, nSamples);
+
+    int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+    for (int i = 0; i < 4; ++i) {
+        memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+    }
+    saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+
+    delete[] loopStereo;
     delete[] data;
     delete[] compressed;
     delete[] stereo;
@@ -366,6 +400,8 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                 fileElement->QueryIntAttribute("compression", &bits);
                 int loopFade = 0;
                 fileElement->QueryIntAttribute("loopFade", &loopFade);
+                bool rotateToZero = false;
+                fileElement->QueryBoolAttribute("looping", &rotateToZero);
 
                 wave_reader_error error = WR_NO_ERROR;
                 wave_reader* wr = wave_reader_open(fullPath.c_str(), &error);
@@ -392,6 +428,10 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                 if (nSamples & 1) {
                     data[nSamples] = data[nSamples - 1];
                     nSamples++;
+                }
+                if (rotateToZero) {
+                    int r = rotateZero(data, nSamples);
+                    printf("%s rotated %d samples.\n", fname, r);
                 }
 
                 int32_t err = 0;
