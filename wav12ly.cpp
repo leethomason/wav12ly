@@ -372,6 +372,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 {
     MemImageUtil image;
     std::string imageFileName;
+    int64_t totalError = 0;
 
     for (const std::string& filename : files) {
         XMLDocument doc;
@@ -495,6 +496,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                             table = i;
                         }
                     }
+                    totalError += bestE * nSamples;
 
                     int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
                     if (post) {
@@ -513,6 +515,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
 
     image.dumpConsole();
+    printf("Total Error=%lld\n", totalError / 1'000'000);
     //image.write("memimage.bin");
     if (textFile) {
         image.writeText((imageFileName + ".txt").c_str());
