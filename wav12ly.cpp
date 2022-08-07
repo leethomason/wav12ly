@@ -23,7 +23,7 @@ extern "C" {
 using namespace wav12;
 using namespace tinyxml2;
 
-bool runTest(wave_reader* wr, int compressBits);
+bool runTest(wave_reader* wr);
 int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile);
 
 static const float M_PI = 3.14f;
@@ -56,80 +56,77 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
 {
     const int SIZE[4] = { 16, 32, 64, 128 };
 
-    for (int codec = 4; codec <= 8; codec += 4) {
-        for (int s = 0; s < 4; ++s) {
-            for (int loop = 0; loop <= 1; ++loop) {
-                for (int nChannels = 1; nChannels <= 2; ++nChannels) {
+    for (int s = 0; s < 4; ++s) {
+        for (int loop = 0; loop <= 1; ++loop) {
+            for (int nChannels = 1; nChannels <= 2; ++nChannels) {
 
-                    int targetSize = SIZE[s];
+                int targetSize = SIZE[s];
 
-                    // Construct a buf & wrapping buf to dectect overrun
-                    int32_t* outBuf = new int32_t[targetSize * 2 + 2];
-                    int32_t* stereo = outBuf + 1;
-                    outBuf[0] = 37;
-                    outBuf[1 + targetSize * 2] = 53;
-                    for (int i = 0; i < targetSize; ++i) {
-                        stereo[i * 2 + 0] = -111;
-                        stereo[i * 2 + 1] = 112;
-                    }
-
-                    // Compression
-                    uint32_t nCompressed = 0;
-                    uint8_t* compressed = new uint8_t[nSamplesIn];
-                    int32_t error = 0;
-                    ExpanderAD4::compress(codec, samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(codec, 0), &error);
-
-                    // Decompress
-                    MemStream memStream0(compressed, nCompressed);
-                    MemStream memStream1(compressed, nCompressed);
-                    memStream0.set(0, nCompressed);
-                    memStream1.set(0, nCompressed);
-                    ExpanderAD4 expander[2];
-                    expander[0].init(&memStream0, codec, 0);
-                    expander[1].init(&memStream1, codec, 0);
-
-                    bool loopArr[2] = { loop > 0, loop > 0 };
-                    int volume[2] = { 256, 256 };
-                    ExpanderAD4::fillBuffer(stereo, targetSize, expander, nChannels, loopArr, volume, true);
-
-                    // Verify
-                    // Memory overrun:
-                    W12ASSERT(outBuf[0] == 37);
-                    W12ASSERT(outBuf[1 + targetSize * 2] == 53);
-                    // Verify trend, but not sound quality
-                    int localT = tolerance * nChannels;
-                    if (codec == 8) localT *= 2;
-
-                    if (loop) {
-                        for (int i = 0; i < targetSize; i++) {
-                            int srcIndex = i % nSamplesIn;
-                            if (srcIndex > 0) {
-                                int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
-                                int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
-                                W12ASSERT(abs(deltaOut - deltaIn) < localT);
-                            }
-                        }
-                    }
-                    else {
-                        int nCheck = nSamplesIn <= targetSize ? nSamplesIn : targetSize;
-                        for (int i = 0; i < nCheck; i++) {
-                            int srcIndex = i;
-                            if (srcIndex > 0) {
-                                int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
-                                int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
-                                W12ASSERT(abs(deltaOut - deltaIn) < localT);
-                            }
-                        }
-                        for (int i = nCheck; i < targetSize; ++i) {
-                            W12ASSERT(stereo[i * 2 + 0] == 0);
-                            W12ASSERT(stereo[i * 2 + 1] == 0);
-                        }
-                    }
-
-                    // Free resources
-                    delete[] outBuf;
-                    delete[] compressed;
+                // Construct a buf & wrapping buf to dectect overrun
+                int32_t* outBuf = new int32_t[targetSize * 2 + 2];
+                int32_t* stereo = outBuf + 1;
+                outBuf[0] = 37;
+                outBuf[1 + targetSize * 2] = 53;
+                for (int i = 0; i < targetSize; ++i) {
+                    stereo[i * 2 + 0] = -111;
+                    stereo[i * 2 + 1] = 112;
                 }
+
+                // Compression
+                uint32_t nCompressed = 0;
+                uint8_t* compressed = new uint8_t[nSamplesIn];
+                int64_t error = 0;
+                ExpanderAD4::compress4(samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
+
+                // Decompress
+                MemStream memStream0(compressed, nCompressed);
+                MemStream memStream1(compressed, nCompressed);
+                memStream0.set(0, nCompressed);
+                memStream1.set(0, nCompressed);
+                ExpanderAD4 expander[2];
+                expander[0].init(&memStream0, 0);
+                expander[1].init(&memStream1, 0);
+
+                bool loopArr[2] = { loop > 0, loop > 0 };
+                int volume[2] = { 256, 256 };
+                ExpanderAD4::fillBuffer(stereo, targetSize, expander, nChannels, loopArr, volume, true);
+
+                // Verify
+                // Memory overrun:
+                W12ASSERT(outBuf[0] == 37);
+                W12ASSERT(outBuf[1 + targetSize * 2] == 53);
+                // Verify trend, but not sound quality
+                int localT = tolerance * nChannels;
+
+                if (loop) {
+                    for (int i = 0; i < targetSize; i++) {
+                        int srcIndex = i % nSamplesIn;
+                        if (srcIndex > 0) {
+                            int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
+                            int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
+                            W12ASSERT(abs(deltaOut - deltaIn) < localT);
+                        }
+                    }
+                }
+                else {
+                    int nCheck = nSamplesIn <= targetSize ? nSamplesIn : targetSize;
+                    for (int i = 0; i < nCheck; i++) {
+                        int srcIndex = i;
+                        if (srcIndex > 0) {
+                            int deltaOut = stereo[srcIndex * 2 + 1] / 65536 - stereo[(srcIndex - 1) * 2 + 0] / 65536;
+                            int deltaIn = samplesIn[srcIndex] - samplesIn[srcIndex - 1];
+                            W12ASSERT(abs(deltaOut - deltaIn) < localT);
+                        }
+                    }
+                    for (int i = nCheck; i < targetSize; ++i) {
+                        W12ASSERT(stereo[i * 2 + 0] == 0);
+                        W12ASSERT(stereo[i * 2 + 1] == 0);
+                    }
+                }
+
+                // Free resources
+                delete[] outBuf;
+                delete[] compressed;
             }
         }
     }
@@ -143,8 +140,8 @@ void generateTest()
     //int16_t* samples = new int16_t[NSAMPLES];
     ExpanderAD4::generateTestData(NSAMPLES, samples);
     uint8_t compressed[NSAMPLES / 2];
-    const int* table = S4ADPCM::getTable(4, 0);
-    int32_t err = 0;
+    const int* table = S4ADPCM::getTable(0);
+    int64_t err = 0;
 
     S4ADPCM::State state;
     int nCompressed = S4ADPCM::encode4(samples, NSAMPLES, compressed, &state, table, &err);
@@ -238,7 +235,7 @@ int main(int argc, const char* argv[])
     }
 
     printf("Running basic tests on '%s'\n", argv[1]);
-    runTest(wr, 8);
+    runTest(wr);
     wave_reader_close(wr);
     return 0;
 }
@@ -270,67 +267,81 @@ int rotateZero(int16_t* data, int nSamples)
     return zero;
 }
 
-bool runTest(wave_reader* wr, int compressBits)
+bool runTest(wave_reader* wr)
 {
-    int format = wave_reader_get_format(wr);
-    int nChannels = wave_reader_get_num_channels(wr);
-    int rate = wave_reader_get_sample_rate(wr);
+    const int format = wave_reader_get_format(wr);
+    const int nChannels = wave_reader_get_num_channels(wr);
+    const int rate = wave_reader_get_sample_rate(wr);
     int nSamples = wave_reader_get_num_samples(wr);
 
     int16_t* data = new int16_t[nSamples + 1];
     wave_reader_get_samples(wr, nSamples, data);
+
+    int bestTable = 0;
+    int64_t bestError = INT_MAX;
+
     if (nSamples & 1) {
         // Force to even.
         data[nSamples] = data[nSamples - 1];
         ++nSamples;
     }
-    int z = rotateZero(data, nSamples);
-    printf("rotate: %d\n", z);
+//    int z = rotateZero(data, nSamples);
+//    printf("rotate: %d\n", z);
 
     if (nChannels != 1 || rate != 22050) {
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
     }
+    
+    for (int t = 0; t < S4ADPCM::N_TABLES; ++t) {
+        // Compression
+        uint32_t nCompressed = 0;
+        uint8_t* compressed = new uint8_t[nSamples];
+        int64_t error = 0;
+        const int* table = S4ADPCM::getTable(t);
+        ExpanderAD4::compress4(data, nSamples, compressed, &nCompressed, table, &error);
 
-    // Compression
-    uint32_t nCompressed = 0;
-    uint8_t* compressed = new uint8_t[nSamples];
-    int32_t error = 0;
-    ExpanderAD4::compress(4, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(4, 0), &error);
+        // Decompress
+        MemStream memStream0(compressed, nCompressed);
+        memStream0.set(0, nCompressed);
+        ExpanderAD4 expander;
+        expander.init(&memStream0, t);
+        const int volume = 256;
 
-    // Decompress
-    MemStream memStream0(compressed, nCompressed);
-    memStream0.set(0, nCompressed);
-    ExpanderAD4 expander;
-    expander.init(&memStream0, 4, 0);
-    int volume = 256;
+        int32_t* stereo = new int32_t[nSamples * 2];
+        const bool LOOP = false;
+        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
 
-    int32_t* stereo = new int32_t[nSamples * 2];
-    const bool LOOP = false;
-    ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
+        const int32_t SHIFT = 65536;
 
-    const int32_t SHIFT = 65536;
+        printf("          First:               Last:\n");
+        printf("In  : %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+            data[0], data[1], data[2], data[3],
+            data[nSamples - 4], data[nSamples - 3], data[nSamples - 2], data[nSamples - 1]);
+        printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+            stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
+            stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
+        printf("Table=%d Error: %lld\n", t, error);
 
-    printf("First 4: %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
-        data[0], data[1], data[2], data[3],
-        stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT);
-    printf("Last 4:  %6d %6d %6d %6d  Post: %6d %6d %6d %6d\n",
-        data[nSamples-4], data[nSamples-3], data[nSamples-2], data[nSamples-1],
-        stereo[nSamples*2 - 8] / SHIFT, stereo[nSamples*2 - 6] / SHIFT, stereo[nSamples*2 - 4] / SHIFT, stereo[nSamples*2 - 2] / SHIFT);
-    printf("Error: %d\n", error);
+        if (error < bestError) {
+            bestError = error;
+            bestTable = t;
+        }
 
-    saveOut("testPost.wav", stereo, nSamples);
+        if (t == 0) {
+            saveOut("testPost.wav", stereo, nSamples);
 
-    int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
-    for (int i = 0; i < 4; ++i) {
-        memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+            int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+            for (int i = 0; i < 4; ++i) {
+                memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+            }
+            saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+            delete[] loopStereo;
+        }
+        delete[] compressed;
+        delete[] stereo;
     }
-    saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
-
-    delete[] loopStereo;
+    printf("Best table=%d error=%lld", bestTable, bestError);
     delete[] data;
-    delete[] compressed;
-    delete[] stereo;
-
     return true;
 }
 
@@ -373,6 +384,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     MemImageUtil image;
     std::string imageFileName;
     int64_t totalError = 0;
+    int64_t simpleError = 0;
 
     for (const std::string& filename : files) {
         XMLDocument doc;
@@ -443,8 +455,6 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     fullPath += '/';
                     fullPath += fname;
 
-                    int bits = 4;
-                    fileElement->QueryIntAttribute("compression", &bits);
                     int loopFade = 0;
                     fileElement->QueryIntAttribute("loopFade", &loopFade);
                     bool rotateToZero = false;
@@ -481,29 +491,31 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                         printf("%s rotated %d samples.\n", fname, r);
                     }
 
-                    int32_t err = 0;
-                    int table = 0;
-                    int32_t bestE = INT32_MAX;
+                    int bestTable = 0;
+                    int64_t bestE = INT32_MAX;
                     uint8_t* compressed = new uint8_t[nSamples];
                     uint32_t nCompressed;
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                        int32_t error = 0;
-                        wav12::ExpanderAD4::compress(bits, data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(bits, i), &error);
+                        int64_t error = 0;
+                        wav12::ExpanderAD4::compress4(data, nSamples, compressed, &nCompressed, 
+                            S4ADPCM::getTable(i), &error);
 
                         if (error < bestE) {
                             bestE = error;
-                            table = i;
+                            bestTable = i;
                         }
                     }
-                    totalError += bestE * nSamples;
+                    totalError += int64_t(bestE) * int64_t(nSamples);
+                    simpleError += int64_t(bestE);
 
-                    int32_t* stereo = compressAndTest(data, nSamples, bits, table, compressed, &nCompressed, &err);
+                    int64_t err = 0;
+                    int32_t* stereo = compressAndTest(data, nSamples, bestTable, compressed, &nCompressed, &err);
                     if (post) {
                         std::string f = postPath + fname;
                         saveOut(f.c_str(), stereo, nSamples);
                     }
-                    image.addFile(stdfname.c_str(), compressed, nCompressed, bits == 8, table, err);
+                    image.addFile(stdfname.c_str(), compressed, nCompressed, bestTable, err);
 
                     delete[] compressed;
                     delete[] data;
@@ -515,7 +527,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
 
     image.dumpConsole();
-    printf("Total Error=%lld\n", totalError / 1'000'000);
+    printf("TotalError = %lld  SimpleError = %lld\n", totalError / int64_t(1'000'000'000), simpleError / 1000);
     //image.write("memimage.bin");
     if (textFile) {
         image.writeText((imageFileName + ".txt").c_str());
