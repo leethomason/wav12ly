@@ -46,22 +46,29 @@ const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
 // -8 + 7
 const int S4ADPCM::STEP[16] = {
 #if 0
+    // This is the previous algorithm.
+    // Still *slightly* more accurate, since the best
+    // value is searched for.
     // TotalError = 3180  SimpleError = 197,499
     -8, -7, -6, -5, -4, -3, -2, -1,
     0, 1, 2, 3, 4, 5, 6, 7
 #endif
 #if 1
+    // A little flare on the ends seems to work well.
     // TotalError = 1019  SimpleError = 61187
     -16, -12, -8, -6, -4, -3, -2, -1,
     0, 1, 2, 3, 4, 6, 8, 16
 #endif
 #if 0
+    // Linear range. Doesn't help (as expected) as
+    // it is just a bigger multiplier.
     // TotalError = 1211  SimpleError = 70258
     -24, -21, -18, -15, -12, -9, -6, -3,
     0, 3, 6, 9, 12, 15, 18, 24
 #endif
 #if 0
-    // was default
+    // 24 bit flare is a too much. (But still pretty good.)
+    // 32 bit is much too much.
     // TotalError = 1118  SimpleError = 64919
     -24, -16, -14, -10, -8, -4, -2, -1,
     0, 1, 2, 4, 8, 12, 16, 24
@@ -69,7 +76,7 @@ const int S4ADPCM::STEP[16] = {
 };
 
 
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int32_t* err)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* err)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
         
@@ -108,9 +115,7 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         state->high = !state->high;
     }
     if (err) {
-        int64_t e64 = err12Squared / int64_t(nSamples);
-        W12ASSERT(e64 >= 0 && e64 < INT32_MAX);
-        *err = int32_t(e64);
+        *err = err12Squared / int64_t(nSamples);
     }
     if (state->high) target++;
     return int(target - start);

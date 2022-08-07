@@ -45,7 +45,7 @@ void ExpanderAD4::rewind()
 }
 
 void ExpanderAD4::compress4(const int16_t* data, int32_t nSamples,
-    uint8_t* compressed, uint32_t* nCompressed, const int* table, int32_t* aveErrSquared)
+    uint8_t* compressed, uint32_t* nCompressed, const int* table, int64_t* aveErrSquared)
 {
     W12ASSERT((nSamples & 1) == 0); // encode an even # of samples to avoid edge cases.
     S4ADPCM::State state;

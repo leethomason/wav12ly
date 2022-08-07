@@ -8,7 +8,7 @@
 int32_t* compressAndTest(const int16_t* samples, int nSamples, 
     int table,
     uint8_t* compressed, uint32_t* nCompressed, 
-    int32_t* err);
+    int64_t* err);
 
 class MemStream : public IStream
 {

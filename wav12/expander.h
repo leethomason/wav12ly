@@ -76,14 +76,7 @@ namespace wav12 {
         // 'compressed' must contain (nSamples + 1)/2 for 4 bit,
         //                           nSamples for 8 bit
         static void compress4(const int16_t* data, int32_t nSamples, 
-            uint8_t* compressed, uint32_t* nCompressed, const int* table, int32_t* aveErrSquared);
-
-        // 'compressed' should be nSamples, although 4 bit will only use half
-        static void compress(const int16_t* data, int32_t nSamples, 
-            uint8_t* compressed, uint32_t* nCompressed, const int* table, int32_t* aveErrSquared)
-        {
-            compress4(data, nSamples, compressed, nCompressed, table, aveErrSquared); 
-        }
+            uint8_t* compressed, uint32_t* nCompressed, const int* table, int64_t* aveErrSquared);
 
         static void generateTestData(int nSamples, int16_t* data);
 

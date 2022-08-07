@@ -75,8 +75,8 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
                 // Compression
                 uint32_t nCompressed = 0;
                 uint8_t* compressed = new uint8_t[nSamplesIn];
-                int32_t error = 0;
-                ExpanderAD4::compress(samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
+                int64_t error = 0;
+                ExpanderAD4::compress4(samplesIn, nSamplesIn, compressed, &nCompressed, S4ADPCM::getTable(0), &error);
 
                 // Decompress
                 MemStream memStream0(compressed, nCompressed);
@@ -141,7 +141,7 @@ void generateTest()
     ExpanderAD4::generateTestData(NSAMPLES, samples);
     uint8_t compressed[NSAMPLES / 2];
     const int* table = S4ADPCM::getTable(0);
-    int32_t err = 0;
+    int64_t err = 0;
 
     S4ADPCM::State state;
     int nCompressed = S4ADPCM::encode4(samples, NSAMPLES, compressed, &state, table, &err);
@@ -278,7 +278,7 @@ bool runTest(wave_reader* wr)
     wave_reader_get_samples(wr, nSamples, data);
 
     int bestTable = 0;
-    int bestError = INT_MAX;
+    int64_t bestError = INT_MAX;
 
     if (nSamples & 1) {
         // Force to even.
@@ -296,9 +296,9 @@ bool runTest(wave_reader* wr)
         // Compression
         uint32_t nCompressed = 0;
         uint8_t* compressed = new uint8_t[nSamples];
-        int32_t error = 0;
+        int64_t error = 0;
         const int* table = S4ADPCM::getTable(t);
-        ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, table, &error);
+        ExpanderAD4::compress4(data, nSamples, compressed, &nCompressed, table, &error);
 
         // Decompress
         MemStream memStream0(compressed, nCompressed);
@@ -320,7 +320,7 @@ bool runTest(wave_reader* wr)
         printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
             stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
             stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
-        printf("Table=%d Error: %d\n", t, error);
+        printf("Table=%d Error: %lld\n", t, error);
 
         if (error < bestError) {
             bestError = error;
@@ -340,7 +340,7 @@ bool runTest(wave_reader* wr)
         delete[] compressed;
         delete[] stereo;
     }
-    printf("Best table=%d error=%d", bestTable, bestError);
+    printf("Best table=%d error=%lld", bestTable, bestError);
     delete[] data;
     return true;
 }
@@ -492,13 +492,13 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     }
 
                     int bestTable = 0;
-                    int32_t bestE = INT32_MAX;
+                    int64_t bestE = INT32_MAX;
                     uint8_t* compressed = new uint8_t[nSamples];
                     uint32_t nCompressed;
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                        int32_t error = 0;
-                        wav12::ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, 
+                        int64_t error = 0;
+                        wav12::ExpanderAD4::compress4(data, nSamples, compressed, &nCompressed, 
                             S4ADPCM::getTable(i), &error);
 
                         if (error < bestE) {
@@ -509,7 +509,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     totalError += int64_t(bestE) * int64_t(nSamples);
                     simpleError += int64_t(bestE);
 
-                    int32_t err = 0;
+                    int64_t err = 0;
                     int32_t* stereo = compressAndTest(data, nSamples, bestTable, compressed, &nCompressed, &err);
                     if (post) {
                         std::string f = postPath + fname;

@@ -108,7 +108,7 @@ void MemImageUtil::writeText(const char* name)
 
 void MemImageUtil::dumpConsole()
 {
-    uint32_t totalUncompressed = 0, totalSize = 0;
+    uint32_t totalSize = 0;
     const MemImage* image = (const MemImage*)dataVec;
     
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
@@ -141,7 +141,6 @@ void MemImageUtil::dumpConsole()
                     fileUnit.table,
                     sqrtf((float)e12[index - MemImage::NUM_DIR]));
 
-                totalUncompressed += fileUnit.numSamples() * 2;
                 totalSize += fileUnit.size;
                 dirTotal += fileUnit.size;
             }
@@ -156,7 +155,6 @@ void MemImageUtil::dumpConsole()
     }
 
     size_t totalImageSize = sizeof(MemImage) + currentPos;
-    printf("Overall ratio=%5.2f\n", (float)totalSize / (float)(totalUncompressed));
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
     printf("Directory name hash=%x\n", dirHash);
 }
