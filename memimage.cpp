@@ -135,7 +135,7 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) table=%d ave-err=%7.1f\n",
+                printf("   %8s at %8d size=%6d (%3dk) table=%2d ave-err=%7.1f\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     fileUnit.table,

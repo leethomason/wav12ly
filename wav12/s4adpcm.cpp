@@ -22,46 +22,49 @@
 
 #include "s4adpcm.h"
 
+
+// The DELTA_TABLE and STEP are dependant. It
+// was a half day of testing to settle on these
+// values. The tables are similar to what was 
+// before, although the perhaps are a little
+// more conservative. A step range of +/-16 seems
+// to work out well.
 const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
-    {-1, 0, 0, 0, 0, 1, 1, 2, 2},   // default
+    {-1, 0, 0, 0, 0, 1, 1, 2, 2},   // 0 default
 
     // Variation on default
-    {-1, 0, 0, 0, 0, 1, 1, 1, 2},
-    {-1, 0, 0, 0, 1, 1, 1, 2, 2},
-    {-1, 0, 0, 0, 1, 1, 2, 2, 2},
-    {-1, -1, 0, 0, 0, 1, 1, 2, 2},
-
-    // Wider (low)
-    {-2, -1, 0, 0, 0, 1, 1, 2, 2},
-    {-2, -1, 0, 0, 0, 0, 1, 1, 2},
+    {-1, 0, 0, 0, 0, 1, 1, 1, 1},   //        
+    {-1, 0, 0, 0, 1, 1, 1, 2, 2},   //
+    {-1, -1, 0, 0, 0, 1, 1, 2, 2},  //
 
     // Wider (high)
-    {-1, 0, 0, 0, 1, 1, 1, 2, 3},
-    {-1, 0, 0, 0, 1, 1, 2, 2, 3},
-    {-1, 0, 0, 1, 1, 2, 2, 3, 3},
-    {-1, 0, 0, 1, 1, 2, 2, 3, 3},
-    {-1, 0, 1, 1, 2, 2, 3, 3, 4},
-
-    // Balanced (odd)
-    {-2, -1, -1, 0, 0, 1, 1, 2, 2}
+    {-1, 0, 0, 0, 1, 1, 1, 2, 3},   //
+    {-1, 0, 0, 0, 1, 1, 2, 2, 3},   //
+    {-1, 0, 1, 1, 2, 2, 3, 3, 4},   //
 };
 
 // -8 + 7
 const int S4ADPCM::STEP[16] = {
 #if 0
-    // 195
+    // TotalError = 3180  SimpleError = 197,499
     -8, -7, -6, -5, -4, -3, -2, -1,
     0, 1, 2, 3, 4, 5, 6, 7
 #endif
+#if 1
+    // TotalError = 1019  SimpleError = 61187
+    -16, -12, -8, -6, -4, -3, -2, -1,
+    0, 1, 2, 3, 4, 6, 8, 16
+#endif
 #if 0
-    // 172
+    // TotalError = 1211  SimpleError = 70258
+    -24, -21, -18, -15, -12, -9, -6, -3,
+    0, 3, 6, 9, 12, 15, 18, 24
+#endif
+#if 0
+    // was default
+    // TotalError = 1118  SimpleError = 64919
     -24, -16, -14, -10, -8, -4, -2, -1,
     0, 1, 2, 4, 8, 12, 16, 24
-#endif
-#if 1
-    // 135
-    -32, -16, -8, -6, -4, -3, -2, -1,
-    0, 1, 2, 4, 6, 8, 16, 32
 #endif
 };
 
@@ -73,15 +76,13 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
     int64_t err12Squared = 0;
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
-        int32_t value = data[i];
-        int32_t guess = state->guess();
-
-        // Bias up so we round up and down equally.
-        int32_t mult = 1 << state->shift;
+        const int32_t value = data[i];
+        const int32_t guess = state->guess();
+        const int32_t mult = 1 << state->shift;
 
         // Search for minimum error.
         int bestE = INT_MAX;
-        uint8_t index = 8;  // zero index
+        uint8_t index = ZERO_INDEX;
         for (int j = 0; j < 16; ++j) {
             int32_t s = guess + mult * STEP[j];
             int32_t e = abs(s - value);
@@ -100,14 +101,16 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         int32_t p = guess + STEP[index] * mult;
         state->push(p);
 
-        int64_t err = int64_t(value) - int64_t(p);
-        err12Squared += err * err;
+        int64_t de = int64_t(value) - int64_t(p);
+        err12Squared += de * de;
 
         state->doShift(table, index);
         state->high = !state->high;
     }
     if (err) {
-        *err = int32_t(err12Squared / nSamples);
+        int64_t e64 = err12Squared / int64_t(nSamples);
+        W12ASSERT(e64 >= 0 && e64 < INT32_MAX);
+        *err = int32_t(e64);
     }
     if (state->high) target++;
     return int(target - start);

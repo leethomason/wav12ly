@@ -384,6 +384,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     MemImageUtil image;
     std::string imageFileName;
     int64_t totalError = 0;
+    int64_t simpleError = 0;
 
     for (const std::string& filename : files) {
         XMLDocument doc;
@@ -490,29 +491,31 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                         printf("%s rotated %d samples.\n", fname, r);
                     }
 
-                    int32_t err = 0;
-                    int table = 0;
+                    int bestTable = 0;
                     int32_t bestE = INT32_MAX;
                     uint8_t* compressed = new uint8_t[nSamples];
                     uint32_t nCompressed;
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
                         int32_t error = 0;
-                        wav12::ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, S4ADPCM::getTable(i), &error);
+                        wav12::ExpanderAD4::compress(data, nSamples, compressed, &nCompressed, 
+                            S4ADPCM::getTable(i), &error);
 
                         if (error < bestE) {
                             bestE = error;
-                            table = i;
+                            bestTable = i;
                         }
                     }
-                    totalError += bestE * nSamples;
+                    totalError += int64_t(bestE) * int64_t(nSamples);
+                    simpleError += int64_t(bestE);
 
-                    int32_t* stereo = compressAndTest(data, nSamples, table, compressed, &nCompressed, &err);
+                    int32_t err = 0;
+                    int32_t* stereo = compressAndTest(data, nSamples, bestTable, compressed, &nCompressed, &err);
                     if (post) {
                         std::string f = postPath + fname;
                         saveOut(f.c_str(), stereo, nSamples);
                     }
-                    image.addFile(stdfname.c_str(), compressed, nCompressed, table, err);
+                    image.addFile(stdfname.c_str(), compressed, nCompressed, bestTable, err);
 
                     delete[] compressed;
                     delete[] data;
@@ -524,96 +527,10 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
     }
 
     image.dumpConsole();
-    printf("TotalError = %lld\n", totalError / 1'000'000);
+    printf("TotalError = %lld  SimpleError = %lld\n", totalError / int64_t(1'000'000'000), simpleError / 1000);
     //image.write("memimage.bin");
     if (textFile) {
         image.writeText((imageFileName + ".txt").c_str());
     }
     return 0;
 }
-
-// bit4:   TotalError =  5368
-// master: TotalError = 13760
-// NICE
-/*
---> ob4.xml hero.xml config_blue.xml 
-
-hum01.wav rotated 94443 samples.
-hum01.wav rotated 59017 samples.
-Dir: ob4
-     blst01 at     1024 size= 12917 ( 12k) table=2 ave-err=  741.8
-     blst02 at    13941 size= 16664 ( 16k) table=0 ave-err=  862.2
-     blst03 at    30605 size= 20994 ( 20k) table=2 ave-err=  742.6
-     blst05 at    51599 size= 16816 ( 16k) table=0 ave-err=  766.3
-     blst06 at    68415 size= 12855 ( 12k) table=0 ave-err=  818.9
-     clsh01 at    81270 size= 12391 ( 12k) table=0 ave-err=  992.8
-     clsh02 at    93661 size= 11025 ( 10k) table=1 ave-err= 1012.5
-     clsh03 at   104686 size= 14724 ( 14k) table=0 ave-err=  911.8
-     clsh04 at   119410 size= 11714 ( 11k) table=0 ave-err=  810.5
-     clsh05 at   131124 size= 11025 ( 10k) table=0 ave-err=  978.7
-     clsh06 at   142149 size= 11025 ( 10k) table=1 ave-err=  995.2
-     clsh07 at   153174 size= 11025 ( 10k) table=0 ave-err=  944.1
-     clsh08 at   164199 size= 11779 ( 11k) table=0 ave-err= 1111.6
-      hum01 at   175978 size=234741 (229k) table=0 ave-err=    7.9
-       in01 at   410719 size=  6052 (  5k) table=0 ave-err= 2966.5
-      out01 at   416771 size= 14471 ( 14k) table=1 ave-err= 1007.3
-   swingh01 at   431242 size=140569 (137k) table=0 ave-err=   82.3
-   swingh02 at   571811 size=140569 (137k) table=0 ave-err=   82.0
-   swingl01 at   712380 size=140569 (137k) table=0 ave-err=   81.7
-   swingl02 at   852949 size=140569 (137k) table=0 ave-err=   81.3
-  Dir total=969k
-Dir: hero
-     blst01 at   993518 size=  7816 (  7k) table=1 ave-err=  769.0
-     blst02 at  1001334 size=  5836 (  5k) table=0 ave-err=  864.8
-     blst03 at  1007170 size=  6600 (  6k) table=0 ave-err=  790.4
-     blst04 at  1013770 size=  5701 (  5k) table=0 ave-err=  879.0
-     blst05 at  1019471 size=  7169 (  7k) table=2 ave-err=  977.9
-     blst06 at  1026640 size=  6713 (  6k) table=0 ave-err=  774.7
-     blst07 at  1033353 size=  8526 (  8k) table=0 ave-err=  911.1
-     blst08 at  1041879 size=  7434 (  7k) table=0 ave-err=  841.9
-     clsh01 at  1049313 size=  6432 (  6k) table=1 ave-err= 1643.3
-     clsh02 at  1055745 size=  6399 (  6k) table=1 ave-err= 1249.7
-     clsh03 at  1062144 size=  8711 (  8k) table=2 ave-err= 1148.0
-     clsh04 at  1070855 size=  5698 (  5k) table=1 ave-err=  918.9
-     clsh05 at  1076553 size=  3783 (  3k) table=0 ave-err= 1115.9
-     clsh06 at  1080336 size=  3446 (  3k) table=1 ave-err=  928.3
-     clsh07 at  1083782 size=  4994 (  4k) table=1 ave-err= 1118.8
-     clsh08 at  1088776 size=  5261 (  5k) table=2 ave-err= 1279.8
-     clsh09 at  1094037 size=  5513 (  5k) table=2 ave-err= 1138.4
-     clsh10 at  1099550 size=  5825 (  5k) table=2 ave-err= 1100.0
-     clsh13 at  1105375 size=  5698 (  5k) table=0 ave-err=  956.2
-     clsh14 at  1111073 size=  5913 (  5k) table=1 ave-err= 1354.5
-     clsh15 at  1116986 size=  5513 (  5k) table=1 ave-err= 1293.3
-     clsh16 at  1122499 size=  5577 (  5k) table=1 ave-err= 1147.0
-      hum01 at  1128076 size=140569 (137k) table=0 ave-err=   13.2
-       in01 at  1268645 size=  6432 (  6k) table=1 ave-err= 3981.6
-       in02 at  1275077 size=  6432 (  6k) table=1 ave-err= 4041.9
-      out01 at  1281509 size= 11169 ( 10k) table=1 ave-err= 2465.5
-      out02 at  1292678 size= 11025 ( 10k) table=1 ave-err= 1935.6
-   swingh01 at  1303703 size=159863 (156k) table=0 ave-err=  342.3
-   swingh03 at  1463566 size=132300 (129k) table=0 ave-err=  270.8
-   swingl01 at  1595866 size=126788 (123k) table=0 ave-err=  291.2
-   swingl03 at  1722654 size=121275 (118k) table=0 ave-err=  266.7
-  Dir total=830k
-config
-  font=0 bc=0088ff ic=44ccff
-  font=0 bc=00ff00 ic=00ffa0
-  font=1 bc=c000ff ic=80a080
-  font=1 bc=ff0000 ic=a08000
-  font=1 bc=ff6000 ic=808000
-  font=0 bc=ffff00 ic=00ff88
-  font=1 bc=80a080 ic=30a0a0
-  font=0 bc=00ff44 ic=00ffaa
-Overall ratio= 0.25
-Image size=1844953 bytes, 1801 k
-Directory name hash=fa135ec3
-*/
-
-/*
-Format = 1 channels = 1 rate = 22050
-Running basic tests on 'hum01.wav'
-rotate: 246413
-First 4 : -7 - 1     10     58  Post : -7 - 2     11     52
-Last 4 : 51      1     11      1  Post : 54      4     10     16
-Error : 202
-*/  

@@ -56,6 +56,19 @@
     bits (State.shift). A large delta will increase the scaling for the
     next sample, a small delta will decrease it, so that the codec is always
     "chasing" the correct scale for the current samples.
+
+    8/2022 changes:
+    - Processing of looping sounds will now look for a good zero point. This fixes
+      the "pop on loop".
+    - 8bit was removed: popping fixed, quality improved in 4bit
+    - More tables.
+    - Encoding/decoding will exceed 16bit limits, but the value passed on is clamped.
+      this is a big code simplification
+    - The value encoded in the stream isn't a multiplier, but an index to STEP.
+      This was the big gain to encoding and the algorithm
+    - Error is about 0.5 to 0.8 of previous values, across the board.
+    Nice improvements. I'm very happy with the insights, and fiati.wav
+    is audibly improved.
 */
 class S4ADPCM
 {
@@ -150,7 +163,7 @@ private:
     }
 
 public:
-    static const int N_TABLES = 13;
+    static const int N_TABLES = 7;
     static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
     static const int STEP[16];
 };
