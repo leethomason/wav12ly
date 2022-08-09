@@ -32,17 +32,6 @@
 
 namespace wav12 {
 
-    template<class T>
-    T wav12Min(T a, T b) { return (a < b) ? a : b; }
-    template<class T>
-    T wav12Max(T a, T b) { return (a > b) ? a : b; }
-    template<class T>
-    T wav12Clamp(T x, T a, T b) {
-        if (x < a) return a;
-        if (x > b) return b;
-        return x;
-    }
-
     class ExpanderAD4
     {
     public:
@@ -58,25 +47,6 @@ namespace wav12 {
         void rewind();
         bool done() const { return m_stream->done(); }
         int table() const { return m_table; }
-
-        // Codec 0 is uncompressed. (100%)
-        // Codec 1 is 12 bit (loss) (75%)
-        // Codec 2 is 12 bit (loss) with delta in a frame (63%)
-        // Codec 3 is 12 bit (loss) predictive, and already better (58%)
-        // Codec 3b is 12 bit (loss) predictive, uses extra bits, and gets to 55%
-        // Codec 3c adds a stack for the high bits. PowerOff 79.2 -> 76.5. Also cleaner code.
-        //
-        // Codec 4 is lossy; predictive, with sliding scale. Similar to ADPCM 
-        // Intending it to be replaced by ADPCM, but need to have a fallback for quality.
-        // Always 2:1. Really good quality. Simpler.
-        //
-        // Codec 4/4-bit is a kind of ADPCM. (Although simpler than the standard algorithm.)
-        // Simpler and cleaner. Tuned on the lightsaber sounds and a sample of classical music.
-        // The quality is shockingly good for such a simple algorithm at 4 bits / samples.
-        // 'compressed' must contain (nSamples + 1)/2 for 4 bit,
-        //                           nSamples for 8 bit
-        static void compress4(const int16_t* data, int32_t nSamples, 
-            uint8_t* compressed, uint32_t* nCompressed, const int* table, int64_t* aveErrSquared);
 
         static void generateTestData(int nSamples, int16_t* data);
 

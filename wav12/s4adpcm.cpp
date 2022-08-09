@@ -75,12 +75,11 @@ const int S4ADPCM::STEP[16] = {
 };
 
 
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* err)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
     W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
         
-    int64_t err12Squared = 0;
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
         const int32_t value = data[i];
@@ -109,13 +108,9 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         state->push(p);
 
         int64_t de = int64_t(value) - int64_t(p);
-        err12Squared += de * de;
 
         state->doShift(table, index);
         state->high = !state->high;
-    }
-    if (err) {
-        *err = err12Squared / int64_t(nSamples);
     }
     if (state->high) target++;
     return int(target - start);
