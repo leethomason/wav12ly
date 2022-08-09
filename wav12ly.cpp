@@ -81,7 +81,7 @@ void compressAndCalcError(const int16_t* samples, int nSamples, int table,
     S4ADPCM::State state;
     S4ADPCM::encode4(samples, nSamples, compressed, &state, pTable);
 
-    if (aveError2 or *stereoOut) {
+    if (aveError2 || *stereoOut) {
         int32_t* stereo = new int32_t[nSamples * 2];
 
         MemStream memStream0(compressed, nCompressed);
