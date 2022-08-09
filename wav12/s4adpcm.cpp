@@ -22,7 +22,6 @@
 
 #include "s4adpcm.h"
 
-
 // The DELTA_TABLE and STEP are dependant. It
 // was a half day of testing to settle on these
 // values. The tables are similar to what was 
@@ -79,6 +78,7 @@ const int S4ADPCM::STEP[16] = {
 int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* err)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
+    W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
         
     int64_t err12Squared = 0;
     const uint8_t* start = target;
@@ -127,6 +127,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
     int32_t* out, State* state, const int* table)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
+    W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
     state->volumeTarget = volume << 8;
 
     for (int32_t i = 0; i < nSamples; ++i) {
@@ -144,15 +145,16 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
 
         state->push(value);
 
+        // The volumeShifted = 256 * volume.
+        // So we can add/subtract 32 (the EASING) and know we won't 
+        // zig-zag back and forth over the target value.
         if (state->volumeShifted < state->volumeTarget)
             state->volumeShifted += VOLUME_EASING;
         else if (state->volumeShifted > state->volumeTarget)
             state->volumeShifted -= VOLUME_EASING;
 
-        int32_t valueClipped = value;
-        if (valueClipped > SHRT_MAX) valueClipped = SHRT_MAX;
-        if (valueClipped < SHRT_MIN) valueClipped = SHRT_MIN;
-        int32_t s = scaleVol(valueClipped, state->volumeShifted);
+        int32_t valueClipped = std::min(std::max(value, SHRT_MIN), SHRT_MAX);
+        int32_t s = sat_mult(valueClipped, state->volumeShifted);
         out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;
 

@@ -26,6 +26,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <algorithm>
 
 #if defined(_MSC_VER)
 #   include <assert.h>
@@ -95,9 +96,8 @@ public:
         void doShift(const int* table, int index) {
             W12ASSERT(index >= 0 && index < 16);
 
-            int delta = abs(index - ZERO_INDEX); // -8 to 7 -> 0 - 8
-            int slide = table[delta];
-            shift += slide;
+            int delta = abs(index - ZERO_INDEX); // 0 - 8
+            shift += table[delta];
             if (shift < 0) shift = 0;
             if (shift > SHIFT_LIMIT_4) shift = SHIFT_LIMIT_4;
         }
@@ -121,31 +121,10 @@ private:
     static const int SHIFT_LIMIT_4 = 12;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
 
-    static int64_t calcError(int value, int p) 
+    inline static int32_t sat_mult(int32_t a, int32_t b)
     {
-        // Want this is 12 bit space, so divide by 16
-        value /= 16;
-        p /= 16;
-        int64_t d = int64_t(value) - p;
-        return d * d;
-    }
-
-    inline static int32_t scaleVol(int32_t value, int32_t volumeShifted)
-    {
-        // Checking for overflow has an almost too-small perf impact.
-        #if true
-        int64_t s64 = int64_t(value) * int64_t(volumeShifted);
-        if (s64 > INT32_MAX)
-            return INT32_MAX;
-        else if (s64 < INT32_MIN)
-            return INT32_MIN;
-        return (int32_t)s64;
-        #else
-        // max: SHRT_MAX * 256 * 256
-        //      32767 * 256 * 256 = 2147418112
-        //              INT32_MAX = 2147483647
-        return value * volumeShifted;
-        #endif
+        int64_t s64 = int64_t(a) * int64_t(b);
+        return (int32_t)std::min(std::max(s64, int64_t(INT32_MIN)), int64_t(INT32_MAX));
     }
 
     inline static int32_t sat_add(int32_t x, int32_t y)
