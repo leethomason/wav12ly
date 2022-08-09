@@ -156,6 +156,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\codec.h" />
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
     <ClInclude Include="..\util\interface.h" />
@@ -167,6 +168,7 @@
     <ClInclude Include="wav12stream.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\codec.cpp" />
     <ClCompile Include="..\memimage.cpp" />
     <ClCompile Include="..\tinyxml2.cpp" />
     <ClCompile Include="..\wav12ly.cpp" />

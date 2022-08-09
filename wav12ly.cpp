@@ -17,6 +17,7 @@ extern "C" {
 #include "tinyxml2.h"
 #include "memimage.h"
 #include "wavutil.h"
+#include "codec.h"
 
 #include "./wav12/expander.h"
 
@@ -52,7 +53,36 @@ void saveOut(const char* fname, const int32_t* stereo, int nSamples)
     delete[] s16;
 }
 
-void compressAndCalcError(const int16_t* samples, int nSamples, int table, uint8_t* compressed, int32_t* aveError2, int32_t** stereoOut)
+void compressAndCalcErrorADPCM(const int16_t* samples, int nSamples, int32_t* aveError2)
+{
+    int nCompressed = nSamples / 2;
+    uint8_t* compressed = new uint8_t[nCompressed];
+
+    CodecState state = { 0, 0 };
+    encode(&state, samples, nSamples, compressed);
+
+    int16_t* mono = new int16_t[nSamples];
+    state.index = 0;
+    state.valprev = 0;
+    decode(&state, compressed, nSamples, mono);
+
+    if (aveError2) {
+        int64_t error2 = 0;
+        for (int i = 0; i < nSamples; ++i) {
+            int16_t s0 = samples[i];
+            int16_t s1 = mono[i];
+            int64_t d = s0 - s1;
+            error2 += d * d;
+        }
+        *aveError2 = int32_t(error2 / nSamples);
+    }
+
+    delete[] compressed;
+    delete[] mono;
+}
+
+void compressAndCalcError(const int16_t* samples, int nSamples, int table, 
+    uint8_t* compressed, int32_t* aveError2, int32_t** stereoOut)
 {
     W12ASSERT((nSamples & 1) == 0);
     int nCompressed = nSamples / 2;
@@ -73,14 +103,16 @@ void compressAndCalcError(const int16_t* samples, int nSamples, int table, uint8
 
         ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &loop, &volume, true);
 
-        int64_t error2 = 0;
-        for (int i = 0; i < nSamples; ++i) {
-            int16_t s0 = samples[i];
-            int16_t s1 = int16_t(stereo[i * 2] / 65536);
-            int64_t d = s0 - s1;
-            error2 += d * d;
+        if (aveError2) {
+            int64_t error2 = 0;
+            for (int i = 0; i < nSamples; ++i) {
+                int16_t s0 = samples[i];
+                int16_t s1 = int16_t(stereo[i * 2] / 65536);
+                int64_t d = s0 - s1;
+                error2 += d * d;
+            }
+            *aveError2 = int32_t(error2 / nSamples);
         }
-        *aveError2 = int32_t(error2 / nSamples);
 
         if (stereoOut && *stereoOut) {
             *stereoOut = stereo;
@@ -340,6 +372,9 @@ bool runTest(wave_reader* wr)
         const bool LOOP = false;
         ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
 
+        int32_t adpcmError = 0;
+        compressAndCalcErrorADPCM(data, nSamples, &adpcmError);
+
         const int32_t SHIFT = 65536;
 
         printf("          First:               Last:\n");
@@ -350,11 +385,13 @@ bool runTest(wave_reader* wr)
             stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
             stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
         printf("Table=%d Error: %d\n", t, error);
+        printf("        ADPCM: %d\n", adpcmError);
 
         if (error < bestError) {
             bestError = error;
             bestTable = t;
         }
+
 
         if (t == 0) {
             saveOut("testPost.wav", stereo, nSamples);
