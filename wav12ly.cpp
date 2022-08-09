@@ -27,16 +27,6 @@ using namespace tinyxml2;
 bool runTest(wave_reader* wr);
 int parseXML(const std::vector<std::string>& files, const std::string& inputPath, bool textFile);
 
-static const float M_PI = 3.14f;
-static const int NSAMPLES = 63;
-static const int EXPAND_BLOCK = 32;
-
-int sign(int a) {
-    if (a > 0) return 1;
-    if (a < 0) return -1;
-    return 0;
-}
-
 void saveOut(const char* fname, const int32_t* stereo, int nSamples)
 {
     int16_t* s16 = new int16_t[nSamples];
@@ -71,7 +61,7 @@ void compressAndCalcErrorADPCM(const int16_t* samples, int nSamples, int32_t* av
         for (int i = 0; i < nSamples; ++i) {
             int16_t s0 = samples[i];
             int16_t s1 = mono[i];
-            int64_t d = s0 - s1;
+            int64_t d = int64_t(s0) - int64_t(s1);
             error2 += d * d;
         }
         *aveError2 = int32_t(error2 / nSamples);
@@ -108,7 +98,7 @@ void compressAndCalcError(const int16_t* samples, int nSamples, int table,
             for (int i = 0; i < nSamples; ++i) {
                 int16_t s0 = samples[i];
                 int16_t s1 = int16_t(stereo[i * 2] / 65536);
-                int64_t d = s0 - s1;
+                int64_t d = int64_t(s0) - int64_t(s1);
                 error2 += d * d;
             }
             *aveError2 = int32_t(error2 / nSamples);
@@ -409,20 +399,6 @@ bool runTest(wave_reader* wr)
     printf("Best table=%d error=%lld", bestTable, bestError);
     delete[] data;
     return true;
-}
-
-
-std::string stdString(const char* p)
-{
-    std::string s;
-    while (*p) {
-        s += tolower(*p);
-        p++;
-    }
-    if (s.size() > MemUnit::NAME_LEN) {
-        s.resize(MemUnit::NAME_LEN, ' ');
-    }
-    return s;
 }
 
 
