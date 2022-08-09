@@ -39,7 +39,7 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size, int table, int64_t _e12)
+void MemImageUtil::addFile(const char* name, void* data, int size, int table, int32_t _e12)
 {   
     assert(numDir > 0);
     assert(numFile < MemImage::NUM_FILES);

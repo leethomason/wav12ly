@@ -5,10 +5,7 @@
 #include "./wav12/wav12stream.h"
 #include "./wav12/expander.h"
 
-int32_t* compressAndTest(const int16_t* samples, int nSamples, 
-    int table,
-    uint8_t* compressed, uint32_t* nCompressed, 
-    int64_t* err);
+void compressAndCalcError(const int16_t* samples, int nSamples, int table, uint8_t* compressed, int32_t* aveError2, int32_t** stereo = 0);
 
 class MemStream : public IStream
 {

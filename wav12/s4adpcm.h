@@ -74,6 +74,7 @@ class S4ADPCM
 {
 public:
     static const int ZERO_INDEX = 8;
+    static const int TABLE_SIZE = 9;
 
     struct State {
         bool high = false;
@@ -103,15 +104,13 @@ public:
         }
     };
 
-    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, 
-        const int* table, int64_t* aveErrSquared);
+    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table);
     static void decode4(const uint8_t *compressed,
                         int32_t nSamples,
                         int32_t volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
                         bool add,   // if true, add to the 'data' buffer, else write to it
                         int32_t *samples, State *state, const int *table);
 
-    static const int TABLE_SIZE = 9;
     static const int* getTable(int i) {
         assert(i >= 0 && i < N_TABLES);
         return DELTA_TABLE_4[i];

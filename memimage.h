@@ -41,7 +41,7 @@ public:
     ~MemImageUtil();
 
     void addDir(const char* name);
-    void addFile(const char* name, void* data, int size, int table, int64_t e12);
+    void addFile(const char* name, void* data, int size, int table, int32_t e12);
     void addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b);
     void dumpConsole();
 
@@ -54,7 +54,7 @@ private:
     uint8_t* dataVec = 0;
     int numDir = 0;
     int numFile = 0;
-    int64_t e12[MemImage::NUM_FILES];
+    int32_t e12[MemImage::NUM_FILES];
 };
 
 #endif // MEMORY_IMAGE_INCLUDE

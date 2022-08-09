@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include <algorithm>
 
 using namespace wav12;
 
@@ -44,13 +45,6 @@ void ExpanderAD4::rewind()
     m_stream->rewind();
 }
 
-void ExpanderAD4::compress4(const int16_t* data, int32_t nSamples,
-    uint8_t* compressed, uint32_t* nCompressed, const int* table, int64_t* aveErrSquared)
-{
-    W12ASSERT((nSamples & 1) == 0); // encode an even # of samples to avoid edge cases.
-    S4ADPCM::State state;
-    *nCompressed = S4ADPCM::encode4(data, nSamples, compressed, &state, table, aveErrSquared);
-}
 
 int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, 
     const int* table, bool overrideEasing)
@@ -65,7 +59,7 @@ int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool
     uint32_t n = 0;
 
     while(n < nSamples) {
-        int samplesWanted = wav12Min<int>(bytesToSamples(BUFFER_SIZE), nSamples - n);
+        int samplesWanted = std::min<int>(bytesToSamples(BUFFER_SIZE), nSamples - n);
         int bytesWanted = samplesToBytes(samplesWanted);
         uint32_t bytesFetched = m_stream->fetch(m_buffer, bytesWanted);
         uint32_t samplesFetched = bytesToSamples(bytesFetched);
