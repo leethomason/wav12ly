@@ -134,10 +134,6 @@ void optimizeTable(const int16_t* samples, int nSamples)
             printf("\n");
         }
     }
-//    printf("ave-err=%d ", bestError);
-//    printTable(bestTable);
-//    printf("\n");
-
     delete[] stereo;
     delete[] compressed;
 }
