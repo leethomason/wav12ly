@@ -29,17 +29,12 @@
 // more conservative. A step range of +/-16 seems
 // to work out well.
 const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
-    {-1, 0, 0, 0, 0, 1, 1, 2, 2},   // 0 default
+    {-1,  0, 0, 0, 0, 1, 1, 2, 2},   // 0 default (though not as good, generally)
 
-    // Variation on default
-    {-1, 0, 0, 0, 0, 1, 1, 1, 1},   //        
-    {-1, 0, 0, 0, 1, 1, 1, 2, 2},   //
-    {-1, -1, 0, 0, 0, 1, 1, 2, 2},  //
-
-    // Wider (high)
-    {-1, 0, 0, 0, 1, 1, 1, 2, 3},   //
-    {-1, 0, 0, 0, 1, 1, 2, 2, 3},   //
-    {-1, 0, 1, 1, 2, 2, 3, 3, 4},   //
+    // discovered
+    {-1,  0, 0, 0, 0, 0, 1, 1, 1},  // in01, out01
+    {-1,  0, 0, 0, 0, 0, 1, 2, 2},  // fiati, swingh01, swingl01, in02
+    {-1, -1, 0, 0, 0, 1, 2, 3, 4}   // hum01
 };
 
 // -8 + 7

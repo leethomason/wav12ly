@@ -19,7 +19,7 @@ MemImageUtil::MemImageUtil()
     dataVec = new uint8_t[DATA_VEC_SIZE];
     memset(dataVec, 0, DATA_VEC_SIZE);
     currentPos = sizeof(MemImage);  // move the write head past the header.
-    memset(e12, 0, sizeof(int64_t) * MemImage::NUM_FILES);
+    memset(e12, 0, sizeof(e12[0]) * MemImage::NUM_FILES);
 }
 
 

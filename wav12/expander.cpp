@@ -98,14 +98,14 @@ void ExpanderAD4::generateTestData(int nSamples, int16_t* data)
 }
 
 
-void ExpanderAD4::fillBuffer(int32_t* buffer, int nBufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int *volume, bool disableEasing)
+void ExpanderAD4::fillBuffer(int32_t* buffer, int nBufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int *volume, bool disableEasing, const int* altTable)
 {
     if (!buffer) return;
     if (nBufferSamples <= 0) return;
 
     for (int i = 0; i < nExpanders; ++i) {
         ExpanderAD4* expander = expanders + i;
-        const int* table = S4ADPCM::getTable(expander->table());
+        const int* table = altTable ? altTable : S4ADPCM::getTable(expander->table());
 
         int n = 0;
         do {

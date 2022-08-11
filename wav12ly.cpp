@@ -71,6 +71,77 @@ void compressAndCalcErrorADPCM(const int16_t* samples, int nSamples, int32_t* av
     delete[] mono;
 }
 
+void printTable(const int* t)
+{
+    printf("[%d, %d, %d, %d, %d, %d, %d, %d, %d]",
+        t[0],
+        t[1],
+        t[2],
+        t[3],
+        t[4],
+        t[5],
+        t[6],
+        t[7],
+        t[8]);
+}
+
+void optimizeTable(const int16_t* samples, int nSamples)
+{
+    W12ASSERT((nSamples & 1) == 0);
+    int nCompressed = nSamples / 2;
+
+    int table[S4ADPCM::TABLE_SIZE] = { -1, 0, 0, 0, 1, 1, 1, 2, 2 };
+    int32_t* stereo = new int32_t[nSamples * 2];
+    uint8_t* compressed = new uint8_t[nCompressed];
+    int bestError = INT_MAX;
+
+    for(int bit=0; bit<512; ++bit) {
+        int b = -2;
+        for(int i=0; i<9; ++i) {
+            if (bit & (1 << i)) {
+                ++b;
+            }
+            table[i] = b;
+        }
+        if (table[8] < 1)
+            continue;
+
+        S4ADPCM::State state;
+        S4ADPCM::encode4(samples, nSamples, compressed, &state, table);
+
+        MemStream memStream0(compressed, nCompressed);
+        memStream0.set(0, nCompressed);
+        ExpanderAD4 expander;
+        expander.init(&memStream0, 0);
+        const int volume = 256;
+        bool loop = false;
+
+        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &loop, &volume, true, table);
+
+        int64_t error2 = 0;
+        for (int i = 0; i < nSamples; ++i) {
+            int16_t s0 = samples[i];
+            int16_t s1 = int16_t(stereo[i * 2] / 65536);
+            int64_t d = int64_t(s0) - int64_t(s1);
+            error2 += d * d;
+        }
+        int32_t aveError2 = int32_t(error2 / nSamples);
+        if (aveError2 < bestError) {
+            bestError = aveError2;
+
+            printf("ave-err=%d ", bestError);
+            printTable(table);
+            printf("\n");
+        }
+    }
+//    printf("ave-err=%d ", bestError);
+//    printTable(bestTable);
+//    printf("\n");
+
+    delete[] stereo;
+    delete[] compressed;
+}
+
 void compressAndCalcError(const int16_t* samples, int nSamples, int table, 
     uint8_t* compressed, int32_t* aveError2, int32_t** stereoOut)
 {
@@ -104,7 +175,7 @@ void compressAndCalcError(const int16_t* samples, int nSamples, int table,
             *aveError2 = int32_t(error2 / nSamples);
         }
 
-        if (stereoOut && *stereoOut) {
+        if (stereoOut) {
             *stereoOut = stereo;
         }
         else {
@@ -344,6 +415,8 @@ bool runTest(wave_reader* wr)
         printf("Can't test nChannels=%d and rate=%d\n", nChannels, rate);
     }
     
+    //optimizeTable(data, nSamples);
+
     for (int t = 0; t < S4ADPCM::N_TABLES; ++t) {
         // Compression
         uint32_t nCompressed = nSamples / 2;

@@ -117,7 +117,7 @@ public:
     }
 
 private:
-    static const int SHIFT_LIMIT_4 = 12;
+    static const int SHIFT_LIMIT_4 = 14;
     static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
 
     inline static int32_t sat_mult(int32_t a, int32_t b)
@@ -142,7 +142,7 @@ private:
     }
 
 public:
-    static const int N_TABLES = 7;
+    static const int N_TABLES = 4;
     static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
     static const int STEP[16];
 };

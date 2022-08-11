@@ -60,7 +60,7 @@ namespace wav12 {
             return b * 2;
         }
 
-        static void fillBuffer(int32_t* buffer, int bufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int* volume, bool disableEasing);
+        static void fillBuffer(int32_t* buffer, int bufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int* volume, bool disableEasing, const int* altTable=0);
 
     private:
         static uint8_t m_buffer[BUFFER_SIZE];
