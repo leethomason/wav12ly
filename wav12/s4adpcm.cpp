@@ -74,21 +74,16 @@ const int S4ADPCM::STEP[16] = {
 };
 
 
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* err)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
     W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
-    if (err)
-        *err = 0;
 
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
         const int32_t value = data[i];
         const int32_t guess = state->guess();
         const int32_t mult = 1 << state->shift;
-
-        if (err)
-            *err += (value - guess) * (value - guess);
 
         // Search for minimum error.
         int bestE = INT_MAX;

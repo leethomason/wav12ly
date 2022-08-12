@@ -112,7 +112,7 @@ public:
         }
     };
 
-    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table, int64_t* err);
+    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table);
     static void decode4(const uint8_t *compressed,
                         int32_t nSamples,
                         int32_t volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
