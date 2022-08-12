@@ -107,7 +107,7 @@ void optimizeTable(const int16_t* samples, int nSamples)
             continue;
 
         S4ADPCM::State state;
-        S4ADPCM::encode4(samples, nSamples, compressed, &state, table);
+        S4ADPCM::encode4(samples, nSamples, compressed, &state, table, 0);
 
         MemStream memStream0(compressed, nCompressed);
         memStream0.set(0, nCompressed);
@@ -146,7 +146,10 @@ void compressAndCalcError(const int16_t* samples, int nSamples, int table,
 
     const int* pTable = S4ADPCM::getTable(table);
     S4ADPCM::State state;
-    S4ADPCM::encode4(samples, nSamples, compressed, &state, pTable);
+    int64_t err;
+    S4ADPCM::encode4(samples, nSamples, compressed, &state, pTable, &err);
+
+    //printf("Guess err=%lld\n", (err / nSamples) / 1000000);
 
     if (aveError2 || *stereoOut) {
         int32_t* stereo = new int32_t[nSamples * 2];
@@ -205,7 +208,7 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
                 uint8_t* compressed = new uint8_t[nSamplesIn];
                 int64_t error = 0;
                 S4ADPCM::State state;
-                S4ADPCM::encode4(samplesIn, nSamplesIn, compressed, &state, S4ADPCM::getTable(0));
+                S4ADPCM::encode4(samplesIn, nSamplesIn, compressed, &state, S4ADPCM::getTable(0), 0);
 
                 // Decompress
                 MemStream memStream0(compressed, nCompressed);

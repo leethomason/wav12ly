@@ -86,8 +86,16 @@ public:
         int32_t volumeTarget = 0;
 
         int32_t guess() const {
-            int32_t g = 2 * prev1 - prev2;
-            return g;
+            // TotalError = 895  SimpleError = 52945
+            //return 2 * prev1 - prev2;
+            
+            // In between: good numbers across the board,
+            // but favors hum & swing
+            // TotalError = 588  SimpleError = 33127
+            return prev1 + (prev1 - prev2) / 2;
+            
+            // TotalError = 586  SimpleError = 28855
+            //return prev1;
         }
         void push(int32_t value) {
             prev2 = prev1;
@@ -104,7 +112,7 @@ public:
         }
     };
 
-    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table);
+    static int encode4(const int16_t* data, int32_t nSamples, uint8_t* compressed, State* state, const int* table, int64_t* err);
     static void decode4(const uint8_t *compressed,
                         int32_t nSamples,
                         int32_t volume, // 256 is neutral; normally 0-256. Above 256 can boost & clip.
@@ -142,7 +150,7 @@ private:
     }
 
 public:
-    static const int N_TABLES = 4;
+    static const int N_TABLES = 6;
     static const int DELTA_TABLE_4[N_TABLES][TABLE_SIZE];
     static const int STEP[16];
 };

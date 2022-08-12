@@ -31,7 +31,11 @@
 const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
     {-1,  0, 0, 0, 0, 1, 1, 2, 2},   // 0 default (though not as good, generally)
 
-    // discovered
+    // discovered (v2)
+    {-1, -1, -1, 0, 0, 0, 1, 2, 2}, // hum01, swinh01
+    {-1, 0, 0, 0, 0, 0, 1, 1, 2},   // out01, fiati
+
+    // discovered (v1)
     {-1,  0, 0, 0, 0, 0, 1, 1, 1},  // in01, out01
     {-1,  0, 0, 0, 0, 0, 1, 2, 2},  // fiati, swingh01, swingl01, in02
     {-1, -1, 0, 0, 0, 1, 2, 3, 4}   // hum01
@@ -70,16 +74,21 @@ const int S4ADPCM::STEP[16] = {
 };
 
 
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table, int64_t* err)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
     W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
-        
+    if (err)
+        *err = 0;
+
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
         const int32_t value = data[i];
         const int32_t guess = state->guess();
         const int32_t mult = 1 << state->shift;
+
+        if (err)
+            *err += (value - guess) * (value - guess);
 
         // Search for minimum error.
         int bestE = INT_MAX;
