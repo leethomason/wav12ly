@@ -11,13 +11,12 @@ struct CodecState
 {
 	int valprev;
 	int index;
+
+	void init() { valprev = 0; index = 0; }
 };
 
-void encode(CodecState* state, const s16* input, int numSamples, u8* output);
-void decode(CodecState* state, const u8* input, int numSamples, s16* output);
-
-void initDecode68000();
-void decode68000(CodecState* state, u8* input, int numSamples, s16* output);
+void encodeADPCM(CodecState* state, const s16* input, int numSamples, u8* output);
+void decodeADPCM(CodecState* state, const u8* input, int numSamples, s16* output);
 
 
 #endif

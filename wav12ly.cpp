@@ -49,12 +49,12 @@ void compressAndCalcErrorADPCM(const int16_t* samples, int nSamples, int32_t* av
     uint8_t* compressed = new uint8_t[nCompressed];
 
     CodecState state = { 0, 0 };
-    encode(&state, samples, nSamples, compressed);
+    encodeADPCM(&state, samples, nSamples, compressed);
 
     int16_t* mono = new int16_t[nSamples];
     state.index = 0;
     state.valprev = 0;
-    decode(&state, compressed, nSamples, mono);
+    decodeADPCM(&state, compressed, nSamples, mono);
 
     if (aveError2) {
         int64_t error2 = 0;

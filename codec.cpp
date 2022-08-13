@@ -27,28 +27,6 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ******************************************************************/
 
-/*
-** Intel/DVI ADPCM coder/decoder.
-**
-** The algorithm for this coder was taken from the IMA Compatability Project
-** proceedings, Vol 2, Number 2; May 1992.
-**
-** Version 1.2, 18-Dec-92.
-**
-** Change log:
-** - Fixed a stupid bug, where the delta was computed as
-** stepsize*code/4 in stead of stepsize*(code+0.5)/4.
-** - There was an off-by-one error causing it to pick
-** an incorrect delta once in a blue moon.
-** - The NODIVMUL define has been removed. Computations are now always done
-** using shifts, adds and subtracts. It turned out that, because the standard
-** is defined using shift/add/subtract, you needed bits of fixup code
-** (because the div/mul simulation using shift/add/sub made some rounding
-** errors that real div/mul don't make) and all together the resultant code
-** ran slower than just using the shifts all the time.
-** - Changed some of the variable names to be more meaningful.
-*/
-
 
 #include <stdio.h>
 #include "codec.h"
@@ -72,7 +50,7 @@ static int stepsizeTable[89] = {
 };
     
 
-void encode(CodecState* state, const s16* input, int numSamples, u8* output)
+void encodeADPCM(CodecState* state, const s16* input, int numSamples, u8* output)
 {
     const s16 *inp;			/* Input buffer pointer */
     u8 *outp;		/* output buffer pointer */
@@ -170,7 +148,7 @@ void encode(CodecState* state, const s16* input, int numSamples, u8* output)
     state->index = index;
 }
 
-void decode(CodecState* state, const u8* input, int numSamples, s16* output)
+void decodeADPCM(CodecState* state, const u8* input, int numSamples, s16* output)
 {
     const u8 *inp;		/* Input buffer pointer */
     s16 *outp;		/* output buffer pointer */
@@ -237,84 +215,6 @@ void decode(CodecState* state, const u8* input, int numSamples, s16* output)
 	step = stepsizeTable[index];
 
 	/* Step 7 - Output value */
-	*outp++ = valpred;
-    }
-
-    state->valprev = valpred;
-    state->index = index;
-}
-
-
-static int indexTable68000[16];
-static int stepsizeTable68000[89*16];
-
-
-void initDecode68000()
-{
-	for (int i = 0; i < 16; i++)
-		indexTable68000[i] = indexTable[i] << 4;
-
-	for (int i = 0; i < 89; i++)
-	{
-		for (int delta = 0; delta < 16; delta++)
-		{
-			int origPredictor = stepsizeTable[i];
-			int predictor = origPredictor >> 3;
-			if (delta & 4)
-				predictor += origPredictor;
-			if (delta & 2)
-				predictor += origPredictor >> 1;
-			if (delta & 1)
-				predictor += origPredictor >> 2;
-			if (delta & 8)
-				predictor = -predictor;
-			stepsizeTable68000[i * 16 + delta] = predictor;
-		}
-	}
-
-}
-
-void decode68000(CodecState* state, u8* input, int numSamples, s16* output)
-{
-    u8 *inp;		/* Input buffer pointer */
-    s16 *outp;		/* output buffer pointer */
-    int delta;			/* Current adpcm output value */
-    int valpred;		/* Predicted value */
-    int vpdiff;			/* Current change to valpred */
-    int index;			/* Current step change index */
-    int inputbuffer;		/* place to keep next 4-bit value */
-    int bufferstep;		/* toggle between inputbuffer/input */
-
-    outp = output;
-    inp = input;
-
-    valpred = state->valprev;
-    index = state->index;
-
-    bufferstep = 0;
-    
-    for ( ; numSamples > 0 ; numSamples-- ) {
-	
-	if ( bufferstep ) {
-	    delta = inputbuffer & 0xf;
-	} else {
-	    inputbuffer = *inp++;
-	    delta = (inputbuffer >> 4) & 0xf;
-	}
-	bufferstep = !bufferstep;
-
-	vpdiff = stepsizeTable68000[index | delta];
-	index += indexTable68000[delta];
-	if ( index < 0 ) index = 0;
-	if ( index > (88 << 4) ) index = (88 << 4);
-
-	valpred += vpdiff;
-
-	if ( valpred > 32767 )
-	  valpred = 32767;
-	else if ( valpred < -32768 )
-	  valpred = -32768;
-
 	*outp++ = valpred;
     }
 
