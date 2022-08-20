@@ -106,8 +106,6 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         int32_t p = guess + STEP[index] * mult;
         state->push(p);
 
-        int64_t de = int64_t(value) - int64_t(p);
-
         state->doShift(table, index);
         state->high = !state->high;
     }
