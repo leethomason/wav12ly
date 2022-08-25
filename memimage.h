@@ -1,38 +1,10 @@
 #ifndef MEMORY_IMAGE_INCLUDE
 #define MEMORY_IMAGE_INCLUDE
 
-#include <vector>
 #include <stdint.h>
+#include <vector>
 
-struct MemUnit {
-    static const int NAME_LEN = 8;
-
-    char name[NAME_LEN];   // NOT null terminated, but 0-filled.
-    uint32_t offset;
-    uint32_t size : 24;     // if needed, an extra sample is added so that size==nSamples
-    uint32_t table : 4;     // 0-15 to select table
-
-    uint32_t numSamples() const { return size * 2; }
-};
-
-static_assert(sizeof(MemUnit) == 16, "16 byte MemUnit");
-
-struct ConfigUnit {
-    char name[MemUnit::NAME_LEN];
-    uint8_t soundFont, bc_r, bc_b, bc_g;
-    uint8_t ic_r, ic_b, ic_g, reserve;
-};
-
-static_assert(sizeof(ConfigUnit) == 16, "16 byte ConfigUnit");
-static_assert(sizeof(ConfigUnit) == sizeof(MemUnit), "MemUnit and ConfigUnit should be the same size");
-
-struct MemImage {
-    static const int NUM_DIR = 4;
-    static const int NUM_FILES = 60;
-    static const int NUM = NUM_DIR + NUM_FILES;
-
-    MemUnit unit[NUM];
-};
+#include "manifest.h"
 
 class MemImageUtil
 {
@@ -41,20 +13,23 @@ public:
     ~MemImageUtil();
 
     void addDir(const char* name);
-    void addFile(const char* name, void* data, int size, int table, int32_t e12);
+    void addFile(const char* name, const void* data, int size, int table, int32_t e12);
     void addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b);
     void dumpConsole();
 
     void write(const char* name);
     void writeText(const char* name);
 
+    static bool Test();
+
 private:
-    static const int DATA_VEC_SIZE = 16 * 1024 * 1024;
-    uint32_t currentPos = 0;
-    uint8_t* dataVec = 0;
+    static const int MEMORY_SIZE = 2'000'000;   // 2 million or...bigger? 2 * 1024 * 1024??
     int numDir = 0;
     int numFile = 0;
-    int32_t e12[MemImage::NUM_FILES];
+    int addr = MemImage::SIZE;      // points to the beginning of th eheap.
+    int32_t e12[MemImage::NUM];
+    MemImage* image = 0;            // alias to dataVac
+    uint8_t* dataVec;               // The entire 2mb image. The MemImage is at the beginning.
 };
 
 #endif // MEMORY_IMAGE_INCLUDE

@@ -145,7 +145,7 @@ void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
         else if (state->volumeShifted > state->volumeTarget)
             state->volumeShifted -= VOLUME_EASING;
 
-        int32_t valueClipped = std::min(std::max(value, SHRT_MIN), SHRT_MAX);
+        int32_t valueClipped = std::min(std::max(value, int32_t(SHRT_MIN)), int32_t(SHRT_MAX));
         int32_t s = sat_mult(valueClipped, state->volumeShifted);
         out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;

@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\codec.h" />
+    <ClInclude Include="..\manifest.h" />
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
     <ClInclude Include="..\util\interface.h" />
@@ -169,6 +170,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\codec.cpp" />
+    <ClCompile Include="..\manifest.cpp" />
     <ClCompile Include="..\memimage.cpp" />
     <ClCompile Include="..\tinyxml2.cpp" />
     <ClCompile Include="..\wav12ly.cpp" />

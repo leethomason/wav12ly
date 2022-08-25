@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <algorithm>
+#include <vector>
 
 extern "C" {
 #include "wave_reader.h"
@@ -294,6 +295,9 @@ int16_t* covert44to22(int nSamples, int16_t* data, int* nSamplesOut)
 
 int main(int argc, const char* argv[])
 {
+    Manifest::Test();
+    MemImageUtil::Test();
+
     int16_t TEST_1[12] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110 };
     int16_t TEST_2[12] = { 0, 10, -20, 30, -40, 50, -60, 70, -80, 90, -100, 110 };
     int16_t TEST_3[12] = { 0, 0, 0, 0, 10, 10, 10, -10, -10, -10, -10 };
@@ -513,6 +517,14 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 
             image.addDir("config");
             int nPalette = 0;
+
+            if (doc.RootElement()->Attribute("name")) {
+                imageFileName += "_";
+                imageFileName += doc.RootElement()->Attribute("name");
+            }
+            else {
+                imageFileName += "_config";
+            }
 
             for (const XMLElement* palElement = doc.RootElement()->FirstChildElement("Palette");
                 palElement;

@@ -10,15 +10,13 @@ extern "C" {
 }
 #include "./wav12/expander.h"
 
-template<class T>
-T miMin(T a, T b) { return (a < b) ? a : b; }
+#define TEST(x) { if (!(x)) { assert(false); return false; }}
 
 MemImageUtil::MemImageUtil()
 {
-    assert(sizeof(MemImage) == 1024);
-    dataVec = new uint8_t[DATA_VEC_SIZE];
-    memset(dataVec, 0, DATA_VEC_SIZE);
-    currentPos = sizeof(MemImage);  // move the write head past the header.
+    dataVec = new uint8_t[MEMORY_SIZE];
+    memset(dataVec, 0, MEMORY_SIZE);
+    image = (MemImage*) dataVec;
     memset(e12, 0, sizeof(e12[0]) * MemImage::NUM_FILES);
 }
 
@@ -32,28 +30,27 @@ MemImageUtil::~MemImageUtil()
 void MemImageUtil::addDir(const char* name)
 {
     assert(numDir < MemImage::NUM_DIR);
-    MemImage* image = (MemImage*)dataVec;
     strncpy(image->unit[numDir].name, name, MemUnit::NAME_LEN);
     image->unit[numDir].offset = MemImage::NUM_DIR + numFile;
     numDir++;
 }
 
 
-void MemImageUtil::addFile(const char* name, void* data, int size, int table, int32_t _e12)
+void MemImageUtil::addFile(const char* name, const void* data, int size, int table, int32_t _e12)
 {   
     assert(numDir > 0);
     assert(numFile < MemImage::NUM_FILES);
 
-    MemImage* image = (MemImage*)dataVec;
     image->unit[numDir-1].size += 1;
     int index = MemImage::NUM_DIR + numFile;
     strncpy(image->unit[index].name, name, MemUnit::NAME_LEN);
-    image->unit[index].offset = currentPos;
+    assert(addr < MEMORY_SIZE);
+    image->unit[index].offset = addr;
     image->unit[index].size = size;
     image->unit[index].table = table;
     e12[numFile] = _e12;
-    memcpy(dataVec + currentPos, data, size);
-    currentPos += size;
+    memcpy(dataVec + addr, data, size);
+    addr += size;
     numFile++;
 }
 
@@ -61,7 +58,6 @@ void MemImageUtil::addFile(const char* name, void* data, int size, int table, in
 void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b)
 {
     assert(numDir > 0);
-    MemImage* image = (MemImage*)dataVec;
     assert(memcmp(image->unit[numDir - 1].name, "config", 6) == 0);
     int index = MemImage::NUM_DIR + numFile;
     ConfigUnit* config = (ConfigUnit*)&image->unit[index];
@@ -82,24 +78,27 @@ void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t b
 
 void MemImageUtil::write(const char* name)
 {
+    assert(addr < MEMORY_SIZE);
+
     FILE* fp = fopen(name, "wb");
-    fwrite(dataVec, currentPos, 1, fp);
+    fwrite(dataVec, addr, 1, fp);
     fclose(fp);
 }
 
 void MemImageUtil::writeText(const char* name)
 {
+    assert(addr < MEMORY_SIZE);
     FILE* fp = fopen(name, "w");
 
-    fprintf(fp, "%d\n", currentPos);
+    fprintf(fp, "%d\n", addr);
 
     static const int STEP = 256;
     char cBuf[STEP*2];
 
-    for (uint32_t i = 0; i < currentPos; i += STEP) {
+    for (int i = 0; i < addr; i += STEP) {
         int n = STEP;
-        if (i + STEP > currentPos)
-            n = currentPos - i;
+        if (i + STEP > addr)
+            n = addr - i;
         encodeBase64(dataVec + i, n, cBuf, true);
         fprintf(fp, "%s\n", cBuf);
     }
@@ -109,7 +108,6 @@ void MemImageUtil::writeText(const char* name)
 void MemImageUtil::dumpConsole()
 {
     uint32_t totalSize = 0;
-    const MemImage* image = (const MemImage*)dataVec;
     
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
@@ -154,8 +152,81 @@ void MemImageUtil::dumpConsole()
         dirHash = hash32(image->unit[i].name, image->unit[i].name + MemUnit::NAME_LEN, dirHash);
     }
 
-    size_t totalImageSize = sizeof(MemImage) + currentPos;
+    size_t totalImageSize = sizeof(MemImage) + addr;
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
     printf("Directory name hash=%x\n", dirHash);
 }
 
+
+bool MemImageUtil::Test()
+{
+    MemImageUtil miu;
+
+    TEST((void*)miu.dataVec == (void*)miu.image);
+
+    const uint8_t data4[4] = { 0, 1, 2, 3 };
+    const uint8_t data5[5] = { 0, 1, 2, 3, 4 };
+
+    miu.addDir("dir0");
+    miu.addFile("file0", data4, 4, 1, 1);
+    
+    miu.addDir("dir1abcd");
+    miu.addFile("file1", data4, 4, 2, 2);
+    miu.addFile("file2", data5, 5, 3, 3);
+
+    miu.addDir("config");
+    for (int i = 0; i < 8; ++i) {
+        miu.addConfig(i + 1, 1, 2, 3, 4, 5, 6);
+    }
+
+    TEST(miu.addr == sizeof(MemImage) + 4 + 4 + 5);
+
+    Manifest m;
+    // load from memory
+    memcpy(m.getBasePtr(), miu.image, sizeof(Manifest));
+
+    TEST(m.getDir("dir2") < 0);
+    const MemUnit& muDir0 = m.getUnit(m.getDir("dir0"));
+    const MemUnit& muDir1 = m.getUnit(m.getDir("dir1abcd"));
+
+    TEST(m.getFile(m.getDir("dir0"), "file3") < 0);
+    const MemUnit& muFile0 = m.getUnit(m.getFile(m.getDir("dir0"), "file0"));
+    const MemUnit& muFile1 = m.getUnit(m.getFile(m.getDir("dir1abcd"), "file1"));
+    const MemUnit& muFile2 = m.getUnit(m.getFile(m.getDir("dir1abcd"), "file2"));
+
+    // And now check the data
+    {
+        TEST(muFile0.nameMatch("file0"));
+        TEST(muFile0.size == 4);
+        TEST(muFile0.table == 1);
+        const uint8_t* data = miu.dataVec + muFile0.offset;
+        for (int i = 0; i < 4; ++i)
+            TEST(data[i] == i);
+    }
+    {
+        TEST(muFile1.size == 4);
+    }
+    {
+        TEST(muFile2.nameMatch("file2"));
+        TEST(muFile2.size == 5);
+        TEST(muFile2.table == 3);
+        const uint8_t* data = miu.dataVec + muFile2.offset;
+        for (int i = 0; i < 5; ++i)
+            TEST(data[i] == i);
+    } 
+    // configuration
+    int configDir = m.getDir("config");
+    const MemUnit& muConfig = m.getUnit(configDir);
+    for (int i = 0; i < 8; ++i) {
+        const ConfigUnit& c = m.getConfig(muConfig.offset + i);
+        TEST(c.soundFont == i + 1);
+        TEST(c.bc_r == 1);
+        TEST(c.bc_g == 2);
+        TEST(c.bc_b == 3);
+        TEST(c.ic_r == 4);
+        TEST(c.ic_g == 5);
+        TEST(c.ic_b == 6);
+    }
+
+    return true;
+}
