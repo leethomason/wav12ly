@@ -160,11 +160,11 @@
     <ClInclude Include="..\manifest.h" />
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
-    <ClInclude Include="..\util\interface.h" />
     <ClInclude Include="..\wave_reader.h" />
     <ClInclude Include="..\wave_writer.h" />
     <ClInclude Include="..\wavutil.h" />
     <ClInclude Include="expander.h" />
+    <ClInclude Include="interface.h" />
     <ClInclude Include="s4adpcm.h" />
     <ClInclude Include="wav12stream.h" />
   </ItemGroup>

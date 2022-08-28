@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "interface.h"
+#include "./wav12/interface.h"
 #include "./wav12/expander.h"
 
 void compressAndCalcError(const int16_t* samples, int nSamples, int table, uint8_t* compressed, int32_t* aveError2, int32_t** stereo = 0);
