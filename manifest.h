@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "interface.h"
+#include "../util/interface.h"
 
 struct MemUnit {
     static const int NAME_LEN = 8;
