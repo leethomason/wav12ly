@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <vector>
 
-#include "manifest.h"
+#include "./wav12util/manifest.h"
 
 class MemImageUtil
 {
