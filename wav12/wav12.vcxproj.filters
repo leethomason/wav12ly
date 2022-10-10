@@ -42,10 +42,10 @@
     <ClInclude Include="..\codec.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\manifest.h">
+    <ClInclude Include="interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="interface.h">
+    <ClInclude Include="..\wav12util\manifest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,7 +77,7 @@
     <ClCompile Include="..\codec.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\manifest.cpp">
+    <ClCompile Include="..\wav12util\manifest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
