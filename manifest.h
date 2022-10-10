@@ -23,6 +23,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <cstddef>
 
 struct MemUnit {
     static const int NAME_LEN = 8;

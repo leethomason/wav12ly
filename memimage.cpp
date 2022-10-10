@@ -59,6 +59,7 @@ void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t b
 {
     assert(numDir > 0);
     assert(memcmp(image->unit[numDir - 1].name, "config", 6) == 0);
+    assert(numFile < MemImage::NUM_FILES);
     int index = MemImage::NUM_DIR + numFile;
     ConfigUnit* config = (ConfigUnit*)&image->unit[index];
     config->soundFont = font;
