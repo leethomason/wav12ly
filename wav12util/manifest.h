@@ -52,6 +52,8 @@ static_assert(sizeof(ConfigUnit) == sizeof(MemUnit), "MemUnit and ConfigUnit sho
 
 
 struct MemImage {
+    // FIXME NUM_DIR is fine, but NUM_FILES is low.
+    // Worth upping to 124?
     static const int NUM_DIR = 4;
     static const int NUM_FILES = 60;
     static const int NUM = NUM_DIR + NUM_FILES;

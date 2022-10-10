@@ -653,7 +653,11 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 
     image.dumpConsole();
     printf("TotalError = %lld  SimpleError = %lld\n", totalError / int64_t(1'000'000'000), simpleError / 1000);
-    //image.write("memimage.bin");
+    printf("Num Dirs=%d Files=%d\n", image.getNumDirs(), image.getNumFiles());
+    if (image.getNumDirs() > MemImage::NUM_DIR)
+        printf("ERROR too many directories\n");
+    if (image.getNumFiles() > MemImage::NUM_FILES)
+        printf("ERROR too many files\n");
     if (textFile) {
         image.writeText((imageFileName + ".txt").c_str());
     }
