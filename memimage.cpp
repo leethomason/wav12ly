@@ -15,8 +15,8 @@ extern "C" {
 MemImageUtil::MemImageUtil()
 {
     dataVec = new uint8_t[MEMORY_SIZE];
+    image = (MemImage*)dataVec;
     memset(dataVec, 0, MEMORY_SIZE);
-    image = (MemImage*) dataVec;
     memset(e12, 0, sizeof(e12[0]) * MemImage::NUM_FILES);
 }
 
@@ -55,26 +55,22 @@ void MemImageUtil::addFile(const char* name, const void* data, int size, int tab
 }
 
 
-void MemImageUtil::addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b)
+void MemImageUtil::writePalette(int index, const MemPalette& palette)
 {
-    assert(numDir > 0);
-    assert(memcmp(image->unit[numDir - 1].name, "config", 6) == 0);
-    assert(numFile < MemImage::NUM_FILES);
-    int index = MemImage::NUM_DIR + numFile;
-    ConfigUnit* config = (ConfigUnit*)&image->unit[index];
-    config->soundFont = font;
-    
-    config->bc_r = bc_r;
-    config->bc_g = bc_g;
-    config->bc_b = bc_b;
-
-    config->ic_r = ic_r;
-    config->ic_g = ic_g;
-    config->ic_b = ic_b;
-
-    numFile++;
+    assert(index >= 0 && index < MemPalette::NUM_PALETTES);
+    memcpy(dataVec + Manifest::PaletteAddr(index), &palette, sizeof(palette));
 }
 
+
+void MemImageUtil::writeDesc(const char* desc)
+{
+    size_t len = strlen(desc);
+    if (len > MemImage::SIZE_DESC - 1)
+        len = MemImage::SIZE_DESC - 1;
+    memset(dataVec + Manifest::DescAddr(), 0, MemImage::SIZE_DESC);
+    for (size_t i = 0; i < len; ++i)
+        *(dataVec + Manifest::DescAddr() + i) = desc[i];
+}
 
 
 void MemImageUtil::write(const char* name)
@@ -113,17 +109,7 @@ void MemImageUtil::dumpConsole()
     for (int d = 0; d < MemImage::NUM_DIR; ++d) {
         uint32_t dirTotal = 0;
 
-        if (memcmp("config", image->unit[d].name, 6) == 0) {
-            printf("config\n");
-            for (unsigned f = 0; f < 8; ++f) {
-                int index = image->unit[d].offset + f;
-                const ConfigUnit* cu = (ConfigUnit*) &image->unit[index];
-                printf("  font=%d bc=%02x%02x%02x ic=%02x%02x%02x\n",
-                    cu->soundFont,
-                    cu->bc_r, cu->bc_g, cu->bc_b,
-                    cu->ic_r, cu->ic_g, cu->ic_b);
-            }
-        } else if (image->unit[d].name[0]) {
+        if (image->unit[d].name[0]) {
             char dirName[9] = { 0 };
             strncpy(dirName, image->unit[d].name, 8);
             printf("Dir: %s\n", dirName);
@@ -148,14 +134,20 @@ void MemImageUtil::dumpConsole()
             printf("  Dir total=%dk\n", dirTotal / 1024);
     }
 
-    uint32_t dirHash = 0;
-    for (int i = 0; i < MemImage::NUM_DIR; i++) {
-        dirHash = hash32(image->unit[i].name, image->unit[i].name + MemUnit::NAME_LEN, dirHash);
+    MemPalette palette[MemPalette::NUM_PALETTES];
+    memcpy(palette, dataVec + Manifest::PaletteAddr(0), sizeof(MemPalette) * MemPalette::NUM_PALETTES);
+
+    for (int i = 0; i < MemPalette::NUM_PALETTES; ++i) {
+        printf("  %d font=%d bc=%02x%02x%02x ic=%02x%02x%02x\n",
+            i,
+            palette[i].soundFont,
+            palette[i].bladeColor.r, palette[i].bladeColor.g, palette[i].bladeColor.b,
+            palette[i].impactColor.r, palette[i].impactColor.g, palette[i].impactColor.b);
     }
+    printf("Description=%s\n", (const char*)(dataVec + Manifest::DescAddr()));
 
     size_t totalImageSize = sizeof(MemImage) + addr;
     printf("Image size=%d bytes, %d k\n", int(totalImageSize), int(totalImageSize / 1024));
-    printf("Directory name hash=%x\n", dirHash);
 }
 
 
@@ -175,12 +167,7 @@ bool MemImageUtil::Test()
     miu.addFile("file1", data4, 4, 2, 2);
     miu.addFile("file2", data5, 5, 3, 3);
 
-    miu.addDir("config");
-    for (int i = 0; i < 8; ++i) {
-        miu.addConfig(i + 1, 1, 2, 3, 4, 5, 6);
-    }
-
-    TEST(miu.addr == sizeof(MemImage) + 4 + 4 + 5);
+    TEST(miu.addr == MemImage::SIZE_BASE + 4 + 4 + 5);
 
     Manifest m;
     // load from memory
@@ -215,19 +202,5 @@ bool MemImageUtil::Test()
         for (int i = 0; i < 5; ++i)
             TEST(data[i] == i);
     } 
-    // configuration
-    int configDir = m.getDir("config");
-    const MemUnit& muConfig = m.getUnit(configDir);
-    for (int i = 0; i < 8; ++i) {
-        const ConfigUnit& c = m.getConfig(muConfig.offset + i);
-        TEST(c.soundFont == i + 1);
-        TEST(c.bc_r == 1);
-        TEST(c.bc_g == 2);
-        TEST(c.bc_b == 3);
-        TEST(c.ic_r == 4);
-        TEST(c.ic_g == 5);
-        TEST(c.ic_b == 6);
-    }
-
     return true;
 }

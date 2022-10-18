@@ -515,7 +515,6 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
         const char* rootName = doc.RootElement()->Name();
         if (rootName && strcmp(rootName, "Config") == 0) {
 
-            image.addDir("config");
             int nPalette = 0;
 
             if (doc.RootElement()->Attribute("name")) {
@@ -530,15 +529,17 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                 palElement;
                 palElement = palElement->NextSiblingElement("Palette"))
             {
-                ++nPalette;
+                MemPalette pal;
                 int font = 0;
                 palElement->QueryIntAttribute("font", &font);
-                uint8_t bc_r, bc_g, bc_b, ic_r, ic_g, ic_b;
+                pal.soundFont = font;
                 const char* bc = palElement->Attribute("bc");
                 const char* ic = palElement->Attribute("ic");
-                ParseHex(bc, &bc_r, &bc_g, &bc_b);
-                ParseHex(ic, &ic_r, &ic_g, &ic_b);
-                image.addConfig(font, bc_r, bc_g, bc_b, ic_r, ic_g, ic_b);
+                ParseHex(bc, &pal.bladeColor.r, &pal.bladeColor.g, &pal.bladeColor.b);
+                ParseHex(ic, &pal.impactColor.r, &pal.impactColor.g, &pal.impactColor.b);
+                image.writePalette(nPalette, pal);
+
+                ++nPalette;
             }
             assert(nPalette == 8);
         }
@@ -651,9 +652,11 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
         }
     }
 
+    image.writeDesc(imageFileName.c_str());
+
     image.dumpConsole();
     printf("TotalError = %lld  SimpleError = %lld\n", totalError / int64_t(1'000'000'000), simpleError / 1000);
-    printf("Num Dirs=%d Files=%d\n", image.getNumDirs(), image.getNumFiles());
+    printf("Num Dirs=%d/%d Files=%d/%d\n", image.getNumDirs(), MemImage::NUM_DIR, image.getNumFiles(), MemImage::NUM_FILES);
     if (image.getNumDirs() > MemImage::NUM_DIR)
         printf("ERROR too many directories\n");
     if (image.getNumFiles() > MemImage::NUM_FILES)
