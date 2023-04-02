@@ -86,16 +86,23 @@ public:
         int32_t volumeTarget = 0;
 
         int32_t guess() const {
-            // TotalError = 895  SimpleError = 52945
-            //return 2 * prev1 - prev2;
-            
-            // In between: good numbers across the board,
-            // but favors hum & swing
-            // TotalError = 588  SimpleError = 33127
+            // I have experimented and it is mysterious.
+            // Note that hum and swings go down, while everything else (blaster, clash, in/out)
+            // goes up.
+            // 
+            //  prev1
+            //  TotalError = 431  SimpleError = 13140 hum = 44.1 swh01 = 165.3
+            //
+            //  prev1 + (prev1 - prev2) / 4
+            //  TotalError = 422  SimpleError = 13216 hum = 35.3 swh01 = 134.6
+            //
+            //  prev1 + (prev1 - prev2) / 2
+            //  TotalError = 461  SimpleError = 14768 hum = 26.1 swh01 = 101.0
+            //
+            //  prev1 + (prev1 - prev2) * 3 / 4
+            //  TotalError = 558  SimpleError = 18137 hum = 18.5 shh01 = 74.5
+            //
             return prev1 + (prev1 - prev2) / 2;
-            
-            // TotalError = 586  SimpleError = 28855
-            //return prev1;
         }
         void push(int32_t value) {
             prev2 = prev1;
