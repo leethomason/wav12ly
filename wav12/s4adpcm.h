@@ -78,7 +78,10 @@ public:
     static const int TABLE_SIZE = 9;
 
     struct State {
+        static constexpr int32_t PREDICTOR = 2;
+
         bool high = false;
+        int32_t predictor = PREDICTOR;
         int32_t prev2 = 0;
         int32_t prev1 = 0;
         int32_t shift = 0;
@@ -102,7 +105,7 @@ public:
             //  prev1 + (prev1 - prev2) * 3 / 4
             //  TotalError = 558  SimpleError = 18137 hum = 18.5 shh01 = 74.5
             //
-            return prev1 + (prev1 - prev2) / 2;
+            return prev1 + (prev1 - prev2) * predictor / 4;
         }
         void push(int32_t value) {
             prev2 = prev1;

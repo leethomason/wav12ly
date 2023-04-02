@@ -113,7 +113,7 @@ void optimizeTable(const int16_t* samples, int nSamples)
         MemStream memStream0(compressed, nCompressed);
         memStream0.set(0, nCompressed);
         ExpanderAD4 expander;
-        expander.init(&memStream0, 0);
+        expander.init(&memStream0, 0, S4ADPCM::State::PREDICTOR);
         const int volume = 256;
         bool loop = false;
 
@@ -139,48 +139,47 @@ void optimizeTable(const int16_t* samples, int nSamples)
     delete[] compressed;
 }
 
-void compressAndCalcError(const int16_t* samples, int nSamples, int table, 
-    uint8_t* compressed, int32_t* aveError2, int32_t** stereoOut)
+
+EncodedStream compressAndCalcError(const int16_t* samples, int nSamples, int table, int32_t predictor)
 {
     W12ASSERT((nSamples & 1) == 0);
     int nCompressed = nSamples / 2;
 
     const int* pTable = S4ADPCM::getTable(table);
     S4ADPCM::State state;
-    S4ADPCM::encode4(samples, nSamples, compressed, &state, pTable);
+    state.predictor = predictor;
+    auto compressed = std::make_unique<uint8_t[]>(nCompressed);
+    S4ADPCM::encode4(samples, nSamples, compressed.get(), &state, pTable);
 
-    //printf("Guess err=%lld\n", (err / nSamples) / 1000000);
+    auto stereo = std::make_unique<int32_t[]>(nSamples * 2);
 
-    if (aveError2 || *stereoOut) {
-        int32_t* stereo = new int32_t[nSamples * 2];
+    MemStream memStream0(compressed.get(), nCompressed);
+    memStream0.set(0, nCompressed);
+    ExpanderAD4 expander;
+    expander.init(&memStream0, table, predictor);
+    const int volume = 256;
+    bool loop = false;
 
-        MemStream memStream0(compressed, nCompressed);
-        memStream0.set(0, nCompressed);
-        ExpanderAD4 expander;
-        expander.init(&memStream0, table);
-        const int volume = 256;
-        bool loop = false;
+    ExpanderAD4::fillBuffer(stereo.get(), nSamples, &expander, 1, &loop, &volume, true);
 
-        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &loop, &volume, true);
-
-        if (aveError2) {
-            int64_t error2 = 0;
-            for (int i = 0; i < nSamples; ++i) {
-                int16_t s0 = samples[i];
-                int16_t s1 = int16_t(stereo[i * 2] / 65536);
-                int64_t d = int64_t(s0) - int64_t(s1);
-                error2 += d * d;
-            }
-            *aveError2 = int32_t(error2 / nSamples);
-        }
-
-        if (stereoOut) {
-            *stereoOut = stereo;
-        }
-        else {
-            delete[] stereo;
-        }
+    int64_t error2 = 0;
+    for (int i = 0; i < nSamples; ++i) {
+        int16_t s0 = samples[i];
+        int16_t s1 = int16_t(stereo.get()[i * 2] / 65536);
+        int64_t d = int64_t(s0) - int64_t(s1);
+        error2 += d * d;
     }
+    int32_t aveError2 = int32_t(error2 / nSamples);
+    
+    return EncodedStream{
+        nSamples,
+		nCompressed,
+		table,
+		predictor,
+		aveError2,
+		std::move(compressed),
+		std::move(stereo),
+	};
 }
 
 void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
@@ -216,8 +215,8 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
                 memStream0.set(0, nCompressed);
                 memStream1.set(0, nCompressed);
                 ExpanderAD4 expander[2];
-                expander[0].init(&memStream0, 0);
-                expander[1].init(&memStream1, 0);
+                expander[0].init(&memStream0, 0, S4ADPCM::State::PREDICTOR);
+                expander[1].init(&memStream1, 0, S4ADPCM::State::PREDICTOR);
 
                 bool loopArr[2] = { loop > 0, loop > 0 };
                 int volume[2] = { 256, 256 };
@@ -270,13 +269,10 @@ void generateTest()
     int16_t samples[NSAMPLES];
     ExpanderAD4::generateTestData(NSAMPLES, samples);
 
-    int nCompressed = NSAMPLES / 2;
-    int32_t err = 0;
-    uint8_t compressed[NSAMPLES / 2];
-    compressAndCalcError(samples, NSAMPLES, 0, compressed, &err);
+    EncodedStream es = compressAndCalcError(samples, NSAMPLES, 0, S4ADPCM::State::PREDICTOR);
 
-    int root = (int)sqrtf((float)err);
-    assert(nCompressed == NSAMPLES / 2);
+    int root = (int)sqrtf((float)es.aveError2);
+    assert(es.nCompressed == NSAMPLES / 2);
     assert(root < 400);
 }
 
@@ -403,6 +399,7 @@ bool runTest(wave_reader* wr)
     wave_reader_get_samples(wr, nSamples, data);
 
     int bestTable = 0;
+    int bestPredictor = S4ADPCM::State::PREDICTOR;
     int64_t bestError = INT_MAX;
 
     if (nSamples & 1) {
@@ -420,58 +417,58 @@ bool runTest(wave_reader* wr)
     //optimizeTable(data, nSamples);
 
     for (int t = 0; t < S4ADPCM::N_TABLES; ++t) {
-        // Compression
-        uint32_t nCompressed = nSamples / 2;
-        uint8_t* compressed = new uint8_t[nCompressed];
-        int32_t error = 0;
-        compressAndCalcError(data, nSamples, t, compressed, &error);
+        for (int pre = 0; pre < 5; ++pre) {
+            // Compression
+            EncodedStream es = compressAndCalcError(data, nSamples, t, pre);
 
-        // Decompress
-        MemStream memStream0(compressed, nCompressed);
-        memStream0.set(0, nCompressed);
-        ExpanderAD4 expander;
-        expander.init(&memStream0, t);
-        const int volume = 256;
+            // Decompress
+            MemStream memStream0(es.compressed.get(), es.nCompressed);
+            memStream0.set(0, es.nCompressed);
+            ExpanderAD4 expander;
+            expander.init(&memStream0, t, pre);
+            const int volume = 256;
 
-        int32_t* stereo = new int32_t[nSamples * 2];
-        const bool LOOP = false;
-        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &LOOP, &volume, true);
+            const bool LOOP = false;
+            ExpanderAD4::fillBuffer(es.stereo.get(), nSamples, &expander, 1, &LOOP, &volume, true);
 
-        int32_t adpcmError = 0;
-        compressAndCalcErrorADPCM(data, nSamples, &adpcmError);
+            int32_t adpcmError = 0;
+            compressAndCalcErrorADPCM(data, nSamples, &adpcmError);
 
-        const int32_t SHIFT = 65536;
+            const int32_t SHIFT = 65536;
 
-        printf("          First:               Last:\n");
-        printf("In  : %6d %6d %6d %6d    %6d %6d %6d %6d\n",
-            data[0], data[1], data[2], data[3],
-            data[nSamples - 4], data[nSamples - 3], data[nSamples - 2], data[nSamples - 1]);
-        printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
-            stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
-            stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
-        printf("Table=%d Error: %d\n", t, error);
-        printf("        ADPCM: %d\n", adpcmError);
+#if false
+            printf("          First:               Last:\n");
+            printf("In  : %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+                data[0], data[1], data[2], data[3],
+                data[nSamples - 4], data[nSamples - 3], data[nSamples - 2], data[nSamples - 1]);
+            printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
+                stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
+                stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
+            printf("Table=%d Error: %d\n", t, error);
+            printf("        ADPCM: %d\n", adpcmError);
+#else
+            printf("Table=%d Predictor=%d Error: %10d ADPCM: %d\n", t, pre, es.aveError2, adpcmError);
+#endif
 
-        if (error < bestError) {
-            bestError = error;
-            bestTable = t;
-        }
-
-
-        if (t == 0) {
-            saveOut("testPost.wav", stereo, nSamples);
-
-            int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
-            for (int i = 0; i < 4; ++i) {
-                memcpy(loopStereo + nSamples * 2 * i, stereo, nSamples * 2 * sizeof(int32_t));
+            if (es.aveError2 < bestError) {
+                bestError = es.aveError2;
+                bestPredictor = pre;
+                bestTable = t;
             }
-            saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
-            delete[] loopStereo;
+
+            if (t == 0) {
+                saveOut("testPost.wav", es.stereo.get(), nSamples);
+
+                int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+                for (int i = 0; i < 4; ++i) {
+                    memcpy(loopStereo + nSamples * 2 * i, es.stereo.get(), nSamples * 2 * sizeof(int32_t));
+                }
+                saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+                delete[] loopStereo;
+            }
         }
-        delete[] compressed;
-        delete[] stereo;
     }
-    printf("Best table=%d error=%lld", bestTable, bestError);
+    printf("Best table=%d predictor=%d error=%lld", bestTable, bestPredictor, bestError);
     delete[] data;
     return true;
 }
@@ -585,11 +582,11 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     bool rotateToZero = false;
                     fileElement->QueryBoolAttribute("looping", &rotateToZero);
 
-                    wave_reader_error error = WR_NO_ERROR;
-                    wave_reader* wr = wave_reader_open(fullPath.c_str(), &error);
-                    if (error != WR_NO_ERROR) {
+                    wave_reader_error wrErr = WR_NO_ERROR;
+                    wave_reader* wr = wave_reader_open(fullPath.c_str(), &wrErr);
+                    if (wrErr != WR_NO_ERROR) {
                         printf("Failed to open: %s\n", fullPath.c_str());
-                        return error;
+                        return wrErr;
                     }
 
                     int format = wave_reader_get_format(wr);
@@ -618,33 +615,26 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
 
                     int bestTable = 0;
                     int32_t bestE = INT32_MAX;
-                    uint8_t* compressed = new uint8_t[nSamples/2];
-                    uint32_t nCompressed = nSamples/2;
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                        int32_t error = 0;
-                        compressAndCalcError(data, nSamples, i, compressed, &error);
+                        EncodedStream es = compressAndCalcError(data, nSamples, i, S4ADPCM::State::PREDICTOR);
 
-                        if (error < bestE) {
-                            bestE = error;
+                        if (es.aveError2 < bestE) {
+                            bestE = es.aveError2;
                             bestTable = i;
                         }
                     }
                     totalError += int64_t(bestE) * int64_t(nSamples);
                     simpleError += int64_t(bestE);
 
-                    int32_t err = 0;
-                    int32_t* stereo = 0;
-                    compressAndCalcError(data, nSamples, bestTable, compressed, &err, &stereo);
+                    EncodedStream es = compressAndCalcError(data, nSamples, bestTable, S4ADPCM::State::PREDICTOR);
                     if (post) {
                         std::string f = postPath + fname;
-                        saveOut(f.c_str(), stereo, nSamples);
+                        saveOut(f.c_str(), es.stereo.get(), nSamples);
                     }
-                    image.addFile(stdfname.c_str(), compressed, nCompressed, bestTable, err);
+                    image.addFile(stdfname.c_str(), es.compressed.get(), es.nCompressed, bestTable, es.aveError2);
 
-                    delete[] compressed;
                     delete[] data;
-                    delete[] stereo;
                     wave_reader_close(wr);
                 }
             }

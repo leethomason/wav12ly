@@ -31,23 +31,24 @@ using namespace wav12;
 
 uint8_t ExpanderAD4::m_buffer[BUFFER_SIZE] = {0};
 
-void ExpanderAD4::init(::IStream* stream, int _table)
+void ExpanderAD4::init(::IStream* stream, int _table, int _predictor)
 {
     W12ASSERT(stream);
     m_stream = stream;
     m_table = _table;
+    m_predictor = _predictor;
     rewind();
 }
 
 void ExpanderAD4::rewind()
 {
     m_state = S4ADPCM::State();
+    m_state.predictor = m_predictor;
     m_stream->rewind();
 }
 
 
-int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, 
-    const int* table, bool overrideEasing)
+int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, const int* table, bool overrideEasing)
 {
     if (!m_stream)
         return 0;
@@ -55,6 +56,8 @@ int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool
     if (overrideEasing) {
         m_state.volumeShifted = volume << 8;
     }
+
+    assert((nSamples & 1) == 0);
 
     uint32_t n = 0;
 

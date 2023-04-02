@@ -38,11 +38,9 @@ namespace wav12 {
         static const int BUFFER_SIZE = 128;
 
         ExpanderAD4() {}
-        void init(IStream* stream, int _table);
+        void init(IStream* stream, int _table, int _predictor);
 
-        // Returns the number of samples it could expand. nSamples should be even,
-        // unless it is the last sample (which can be odd if it uses up the
-        // entire track.)
+        // Returns the number of samples it could expand. nSamples should be even.
         int expand(int32_t* target, uint32_t nSamples, int32_t volume, bool add, const int* table, bool overrideEasing);
         void rewind();
         bool done() const { return m_stream->done(); }
@@ -50,12 +48,10 @@ namespace wav12 {
 
         static void generateTestData(int nSamples, int16_t* data);
 
-        // Exact; but there can be extra. For 7 samples, 4 bytes are needed, but a nibble is unused.
         static int samplesToBytes(int n) {
             return (n + 1) / 2;
         }
 
-        // Exact; returns the possible number of samples. (Could be one less.)
         static int bytesToSamples(int b) {
             return b * 2;
         }
@@ -67,6 +63,7 @@ namespace wav12 {
         IStream* m_stream = 0;
         S4ADPCM::State m_state;
         int m_table = 0;
+        int m_predictor = 2;
     };
 }
 #endif

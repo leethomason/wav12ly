@@ -1,10 +1,21 @@
 #pragma once
 
+#include <memory>
 #include <stdint.h>
 #include "./wav12/interface.h"
 #include "./wav12/expander.h"
 
-void compressAndCalcError(const int16_t* samples, int nSamples, int table, uint8_t* compressed, int32_t* aveError2, int32_t** stereo = 0);
+struct EncodedStream {
+    int nSamples = 0;
+    int nCompressed = 0;
+    int table = 0;
+    int predictor = 0;
+    int32_t aveError2 = 0;
+    std::unique_ptr<uint8_t[]> compressed;
+    std::unique_ptr<int32_t[]> stereo;
+};
+
+EncodedStream compressAndCalcError(const int16_t* samples, int nSamples, int table, int predictor);
 
 class MemStream : public IStream
 {
