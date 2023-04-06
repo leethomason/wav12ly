@@ -81,16 +81,21 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
 
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
-        const int32_t value = data[i];
         const int32_t guess = state->guess();
         const int32_t mult = 1 << state->shift;
 
-        // Search for minimum error.
+        // Search for minimum error. We are searching
+        // for the best 'index' into the STEP table.
         int bestE = INT_MAX;
         uint8_t index = ZERO_INDEX;
         for (int j = 0; j < 16; ++j) {
             int32_t s = guess + mult * STEP[j];
-            int32_t e = abs(s - value);
+            int32_t e = abs(s - data[i]);
+
+            // Tried to do read ahead to reduce error,
+            // but in only made a very small improvement
+            // (~1%) and had tuning issues. Fiddling with
+            // guess logic had much bigger impact.
 
             if (e < bestE) {
                 bestE = e;
@@ -103,9 +108,7 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
         else
             *target = index;
 
-        int32_t p = guess + STEP[index] * mult;
-        state->push(p);
-
+        state->push(guess + STEP[index] * mult);
         state->doShift(table, index);
         state->high = !state->high;
     }
