@@ -15,7 +15,9 @@ struct EncodedStream {
     std::unique_ptr<int32_t[]> stereo;
 };
 
-EncodedStream compressAndCalcError(const int16_t* samples, int nSamples, int table, int predictor);
+EncodedStream compressS4(const int16_t* samples, int nSamples, int table, int predictor);
+
+EncodedStream compressGroup(const int16_t* samples, int nSamples);
 
 class MemStream : public IStream
 {

@@ -29,7 +29,7 @@
 
 using namespace wav12;
 
-uint8_t ExpanderAD4::m_buffer[BUFFER_SIZE] = {0};
+//uint8_t ExpanderAD4::m_buffer[BUFFER_SIZE] = {0};
 
 void ExpanderAD4::init(::IStream* stream, int _table, int _predictor)
 {

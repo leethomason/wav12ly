@@ -9,6 +9,7 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <limits>
 
 extern "C" {
 #include "wave_reader.h"
@@ -19,6 +20,7 @@ extern "C" {
 #include "memimage.h"
 #include "wavutil.h"
 #include "codec.h"
+#include "enkits/TaskScheduler.h"
 
 #include "./wav12/expander.h"
 
@@ -139,8 +141,82 @@ void optimizeTable(const int16_t* samples, int nSamples)
     delete[] compressed;
 }
 
+#define USE_MT() 1
 
-EncodedStream compressAndCalcError(const int16_t* samples, int nSamples, int table, int32_t predictor)
+struct CompressTask : enki::ITaskSet
+{
+    EncodedStream es;
+    const int16_t* samples = 0;
+    int nSamples = 0;
+    int table = 0;
+    int predictor = 0;
+    void ExecuteRange(enki::TaskSetPartition range_, uint32_t threadnum_) override {
+        this->es = compressS4(samples, nSamples, table, predictor);
+    }
+};
+
+EncodedStream compressGroup(const int16_t* samples, int nSamples)
+{
+    static constexpr int32_t N = S4ADPCM::N_TABLES * S4ADPCM::State::N_PREDICTOR;
+#if USE_MT()
+    CompressTask esArr[N];
+
+    static enki::TaskScheduler taskScheduler;
+    static bool initialized = false;
+    if (!initialized) {
+        taskScheduler.Initialize();
+        initialized = true;
+    }
+#else
+    EncodedStream esArr[N];
+#endif
+
+    int32_t errADPCM = 0;
+    compressAndCalcErrorADPCM(samples, nSamples, &errADPCM);
+
+//    for (int table = 0; table < S4ADPCM::N_TABLES; table++) {
+//        for (int pre = 0; pre < S4ADPCM::State::N_PREDICTOR; pre++) {
+    for (int table = 0; table < 1; table++) {
+        for (int pre = 0; pre < 2; pre++) {
+            int i = table * S4ADPCM::State::N_PREDICTOR + pre;
+#if USE_MT()
+            esArr[i].samples = samples;
+            esArr[i].nSamples = nSamples;
+            esArr[i].table = table;
+            esArr[i].predictor = pre;
+            taskScheduler.AddTaskSetToPipe(&esArr[i]);
+#else
+            esArr[i] = compressS4(samples, nSamples, table, pre);
+#endif
+        }
+    }
+#if USE_MT()
+    taskScheduler.WaitforAll();
+#endif
+
+    int32_t bestErr = std::numeric_limits<int32_t>::max();
+    int best = 0;
+    for (int i = 0; i < 1; ++i) {
+#if USE_MT()
+        const EncodedStream& es = esArr[i].es;
+#else
+        const EncodedStream& es = esArr[i];
+#endif
+        printf("Table=%d Predictor=%d Error: %10d ADPCM: %d\n", es.table, es.predictor, es.aveError2, errADPCM);
+        if (es.aveError2 < bestErr) {
+            bestErr = es.aveError2;
+            best = i;
+        }
+    }
+#if USE_MT()
+    return std::move(esArr[best].es);
+#else
+    return std::move(esArr[best]);
+#endif
+}
+
+
+EncodedStream compressS4(const int16_t* samples, int nSamples, int table, int32_t predictor)
 {
     W12ASSERT((nSamples & 1) == 0);
     int nCompressed = nSamples / 2;
@@ -149,6 +225,7 @@ EncodedStream compressAndCalcError(const int16_t* samples, int nSamples, int tab
     S4ADPCM::State state;
     state.predictor = predictor;
     auto compressed = std::make_unique<uint8_t[]>(nCompressed);
+
     S4ADPCM::encode4(samples, nSamples, compressed.get(), &state, pTable);
 
     auto stereo = std::make_unique<int32_t[]>(nSamples * 2);
@@ -269,7 +346,7 @@ void generateTest()
     int16_t samples[NSAMPLES];
     ExpanderAD4::generateTestData(NSAMPLES, samples);
 
-    EncodedStream es = compressAndCalcError(samples, NSAMPLES, 0, S4ADPCM::State::PREDICTOR);
+    EncodedStream es = compressS4(samples, NSAMPLES, 0, S4ADPCM::State::PREDICTOR);
 
     int root = (int)sqrtf((float)es.aveError2);
     assert(es.nCompressed == NSAMPLES / 2);
@@ -398,10 +475,6 @@ bool runTest(wave_reader* wr)
     int16_t* data = new int16_t[nSamples + 1];
     wave_reader_get_samples(wr, nSamples, data);
 
-    int bestTable = 0;
-    int bestPredictor = S4ADPCM::State::PREDICTOR;
-    int64_t bestError = INT_MAX;
-
     if (nSamples & 1) {
         // Force to even.
         data[nSamples] = data[nSamples - 1];
@@ -416,59 +489,19 @@ bool runTest(wave_reader* wr)
     
     //optimizeTable(data, nSamples);
 
-    for (int t = 0; t < S4ADPCM::N_TABLES; ++t) {
-        for (int pre = 0; pre < 5; ++pre) {
-            // Compression
-            EncodedStream es = compressAndCalcError(data, nSamples, t, pre);
+    EncodedStream es = compressGroup(data, nSamples);
 
-            // Decompress
-            MemStream memStream0(es.compressed.get(), es.nCompressed);
-            memStream0.set(0, es.nCompressed);
-            ExpanderAD4 expander;
-            expander.init(&memStream0, t, pre);
-            const int volume = 256;
+    {
+        saveOut("testPost.wav", es.stereo.get(), nSamples);
 
-            const bool LOOP = false;
-            ExpanderAD4::fillBuffer(es.stereo.get(), nSamples, &expander, 1, &LOOP, &volume, true);
-
-            int32_t adpcmError = 0;
-            compressAndCalcErrorADPCM(data, nSamples, &adpcmError);
-
-            const int32_t SHIFT = 65536;
-
-#if false
-            printf("          First:               Last:\n");
-            printf("In  : %6d %6d %6d %6d    %6d %6d %6d %6d\n",
-                data[0], data[1], data[2], data[3],
-                data[nSamples - 4], data[nSamples - 3], data[nSamples - 2], data[nSamples - 1]);
-            printf("Post: %6d %6d %6d %6d    %6d %6d %6d %6d\n",
-                stereo[0] / SHIFT, stereo[2] / SHIFT, stereo[4] / SHIFT, stereo[6] / SHIFT,
-                stereo[nSamples * 2 - 8] / SHIFT, stereo[nSamples * 2 - 6] / SHIFT, stereo[nSamples * 2 - 4] / SHIFT, stereo[nSamples * 2 - 2] / SHIFT);
-            printf("Table=%d Error: %d\n", t, error);
-            printf("        ADPCM: %d\n", adpcmError);
-#else
-            printf("Table=%d Predictor=%d Error: %10d ADPCM: %d\n", t, pre, es.aveError2, adpcmError);
-#endif
-
-            if (es.aveError2 < bestError) {
-                bestError = es.aveError2;
-                bestPredictor = pre;
-                bestTable = t;
-            }
-
-            if (t == 0) {
-                saveOut("testPost.wav", es.stereo.get(), nSamples);
-
-                int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
-                for (int i = 0; i < 4; ++i) {
-                    memcpy(loopStereo + nSamples * 2 * i, es.stereo.get(), nSamples * 2 * sizeof(int32_t));
-                }
-                saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
-                delete[] loopStereo;
-            }
+        int32_t* loopStereo = new int32_t[nSamples * 2 * 4];
+        for (int i = 0; i < 4; ++i) {
+            memcpy(loopStereo + nSamples * 2 * i, es.stereo.get(), nSamples * 2 * sizeof(int32_t));
         }
+        saveOut("testPostLoop.wav", loopStereo, nSamples * 4);
+        delete[] loopStereo;
     }
-    printf("Best table=%d predictor=%d error=%lld", bestTable, bestPredictor, bestError);
+    printf("Best table=%d predictor=%d error=%d\n", es.table, es.predictor, es.aveError2);
     delete[] data;
     return true;
 }
@@ -617,7 +650,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     int32_t bestE = INT32_MAX;
 
                     for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                        EncodedStream es = compressAndCalcError(data, nSamples, i, S4ADPCM::State::PREDICTOR);
+                        EncodedStream es = compressS4(data, nSamples, i, S4ADPCM::State::PREDICTOR);
 
                         if (es.aveError2 < bestE) {
                             bestE = es.aveError2;
@@ -627,7 +660,7 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                     totalError += int64_t(bestE) * int64_t(nSamples);
                     simpleError += int64_t(bestE);
 
-                    EncodedStream es = compressAndCalcError(data, nSamples, bestTable, S4ADPCM::State::PREDICTOR);
+                    EncodedStream es = compressS4(data, nSamples, bestTable, S4ADPCM::State::PREDICTOR);
                     if (post) {
                         std::string f = postPath + fname;
                         saveOut(f.c_str(), es.stereo.get(), nSamples);

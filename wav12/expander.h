@@ -59,7 +59,7 @@ namespace wav12 {
         static void fillBuffer(int32_t* buffer, int bufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int* volume, bool disableEasing, const int* altTable=0);
 
     private:
-        static uint8_t m_buffer[BUFFER_SIZE];
+        uint8_t m_buffer[BUFFER_SIZE];
         IStream* m_stream = 0;
         S4ADPCM::State m_state;
         int m_table = 0;

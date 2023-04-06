@@ -79,6 +79,7 @@ public:
 
     struct State {
         static constexpr int32_t PREDICTOR = 2;
+        static constexpr int32_t N_PREDICTOR = 5; // [0, 4]
 
         bool high = false;
         int32_t predictor = PREDICTOR;
