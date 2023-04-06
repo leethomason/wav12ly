@@ -33,6 +33,9 @@ if len(sys.argv) == 5 and sys.argv[4] == 'xml':
     GEN_XML = True
     print("Generating XML file")
 
+INPUT_FILE = INPUT_FILE.replace('\\', '/')
+ZIP_PATH = ZIP_PATH.replace('\\', '/')
+
 print("Font name:  " + FONT_NAME)
 print("Input file: " + INPUT_FILE)
 print("Zip:        " + ZIP_PATH)
@@ -70,6 +73,11 @@ if GEN_XML:
     xml_fp.write('<?xml version="1.0" encoding="utf-8"?>\n' +
                  '<Image path="' + leaf_name + '" zip="' + ZIP_PATH + '">\n' + 
                  '  <Directory name="' + FONT_NAME + '" path="./out/' + FONT_NAME + '" post="./post/' + FONT_NAME + '">\n')
+
+if os.path.exists(INPUT_FILE):
+    print("Input file found.")
+else:
+    print("ERROR: input file not found.")
 
 # sox ./fonts/in/vaderanh/hum01.wav -b 16 -c 1 -r 22050 ./fonts/out/vaderanh/hum01.wav lowpass 10000
 for root, dirs, files in os.walk(IN_PATH):
