@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="enki">
+      <UniqueIdentifier>{de86483e-6bf0-42a0-bfeb-2f78c1aa9a6a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\wave_reader.h">
@@ -48,6 +51,12 @@
     <ClInclude Include="..\wav12util\manifest.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\enkits\LockLessMultiReadPipe.h">
+      <Filter>enki</Filter>
+    </ClInclude>
+    <ClInclude Include="..\enkits\TaskScheduler.h">
+      <Filter>enki</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\wave_reader.c">
@@ -79,6 +88,12 @@
     </ClCompile>
     <ClCompile Include="..\wav12util\manifest.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\enkits\TaskScheduler.cpp">
+      <Filter>enki</Filter>
+    </ClCompile>
+    <ClCompile Include="..\enkits\TaskScheduler_c.cpp">
+      <Filter>enki</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

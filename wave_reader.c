@@ -286,7 +286,7 @@ wave_reader_get_samples(struct wave_reader *wr, int n, void *buf)
     assert(wr != NULL);
     assert(buf != NULL);
 
-    ret = fread(buf, wr->num_channels * wr->sample_bits / 8, n, wr->fp);
+    ret = (int) fread(buf, wr->num_channels * wr->sample_bits / 8, n, wr->fp);
     if (ret < n && ferror(wr->fp)) {
         return -1;
     }

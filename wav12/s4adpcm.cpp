@@ -28,7 +28,7 @@
 // before, although the perhaps are a little
 // more conservative. A step range of +/-16 seems
 // to work out well.
-const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
+const int32_t S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
     {-1,  0, 0, 0, 0, 1, 1, 2, 2},   // 0 default (though not as good, generally)
 
     // discovered (v2)
@@ -42,7 +42,7 @@ const int S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
 };
 
 // -8 + 7
-const int S4ADPCM::STEP[16] = {
+const int32_t S4ADPCM::STEP[16] = {
 #if 0
     // This is the previous algorithm.
     // Still *slightly* more accurate, since the best
@@ -73,11 +73,13 @@ const int S4ADPCM::STEP[16] = {
 #endif
 };
 
-
-int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state, const int* table)
+int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, State* state)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
     W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
+    W12ASSERT(fastSign(5) == 1);
+    W12ASSERT(fastSign(-287) == -1);
+    W12ASSERT(fastSign(0) == 0);
 
     const uint8_t* start = target;
     for (int i = 0; i < nSamples; ++i) {
@@ -109,8 +111,8 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
             *target = index;
 
         state->push(guess + STEP[index] * mult);
-        state->doShift(table, index);
-        state->high = !state->high;
+        state->doShift(index);
+        state->high = state->high ? 0 : 1;
     }
     if (state->high) target++;
     return int(target - start);
@@ -119,41 +121,33 @@ int S4ADPCM::encode4(const int16_t* data, int32_t nSamples, uint8_t* target, Sta
 void S4ADPCM::decode4(const uint8_t* p, int32_t nSamples,
     int32_t volume,
     bool add,
-    int32_t* out, State* state, const int* table)
+    int32_t* out, State* state)
 {
     W12ASSERT(STEP[ZERO_INDEX] == 0);
     W12ASSERT((nSamples & 1) == 0);     // even number. not sure the odd is handled?
     state->volumeTarget = volume << 8;
 
-    for (int32_t i = 0; i < nSamples; ++i) {
-        uint8_t index = 0;
-        if (state->high) {
-            index = *p >> 4;
-            p++;
-        }
-        else {
-            index = *p & 0xf;
-        }
-        int32_t mult = 1 << state->shift;
-        int32_t guess = state->guess();
-        int32_t value = guess + STEP[index] * mult;
+    const uint8_t* end = p + nSamples / 2;
+    while(p < end) {
+        const int index = (*p >> (state->high << 2)) & 0x0f;
+        p += state->high;
+        const int32_t mult = 1 << state->shift;
+        const int32_t guess = state->guess();
+        const int32_t value = guess + STEP[index] * mult;
 
         state->push(value);
 
         // The volumeShifted = 256 * volume.
         // So we can add/subtract 32 (the EASING) and know we won't 
         // zig-zag back and forth over the target value.
-        if (state->volumeShifted < state->volumeTarget)
-            state->volumeShifted += VOLUME_EASING;
-        else if (state->volumeShifted > state->volumeTarget)
-            state->volumeShifted -= VOLUME_EASING;
+        state->volumeShifted += VOLUME_EASING * fastSign(state->volumeTarget - state->volumeShifted);
 
-        int32_t valueClipped = std::min(std::max(value, int32_t(SHRT_MIN)), int32_t(SHRT_MAX));
-        int32_t s = sat_mult(valueClipped, state->volumeShifted);
+        int32_t s = sat_mult(fastClamp<int32_t>(value, SHRT_MIN, SHRT_MAX), state->volumeShifted);
         out[0] = out[1] = add ? sat_add(s, out[0]) : s;
         out += 2;
 
-        state->doShift(table, index);
-        state->high = !state->high;
+        state->doShift(index);
+        state->high = (~state->high) & 1;
     }
 }
+

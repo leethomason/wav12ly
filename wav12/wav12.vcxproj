@@ -157,6 +157,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\codec.h" />
+    <ClInclude Include="..\enkits\LockLessMultiReadPipe.h" />
+    <ClInclude Include="..\enkits\TaskScheduler.h" />
     <ClInclude Include="..\memimage.h" />
     <ClInclude Include="..\tinyxml2.h" />
     <ClInclude Include="..\wav12util\manifest.h" />
@@ -170,6 +172,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\codec.cpp" />
+    <ClCompile Include="..\enkits\TaskScheduler.cpp" />
+    <ClCompile Include="..\enkits\TaskScheduler_c.cpp" />
     <ClCompile Include="..\memimage.cpp" />
     <ClCompile Include="..\tinyxml2.cpp" />
     <ClCompile Include="..\wav12ly.cpp" />

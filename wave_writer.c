@@ -304,7 +304,7 @@ wave_writer_put_samples(struct wave_writer *ww, int n, void *buf)
     assert(ww != NULL);
     assert(buf != NULL);
 
-    ret = fwrite(buf, ww->num_channels * ww->sample_bits / 8, n, ww->fp);
+    ret = (int) fwrite(buf, ww->num_channels * ww->sample_bits / 8, n, ww->fp);
     if (ret < n) {
         return -1;
     }
