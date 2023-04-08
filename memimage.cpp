@@ -36,7 +36,7 @@ void MemImageUtil::addDir(const char* name)
 }
 
 
-void MemImageUtil::addFile(const char* name, const void* data, int size, int table, int32_t _e12)
+void MemImageUtil::addFile(const char* name, const void* data, int size, int table, int predictor, int32_t _e12)
 {   
     assert(numDir > 0);
     assert(numFile < MemImage::NUM_FILES);
@@ -48,6 +48,7 @@ void MemImageUtil::addFile(const char* name, const void* data, int size, int tab
     image->unit[index].offset = addr;
     image->unit[index].size = size;
     image->unit[index].table = table;
+    image->unit[index].predictor = predictor;
     e12[numFile] = _e12;
     memcpy(dataVec + addr, data, size);
     addr += size;
@@ -133,10 +134,11 @@ void MemImageUtil::dumpConsole()
                 char fileName[9] = { 0 };
                 strncpy(fileName, fileUnit.name, 8);
 
-                printf("   %8s at %8d size=%6d (%3dk) table=%2d ave-err=%7.1f\n",
+                printf("   %8s at %8d size=%6d (%3dk) table=%2d predictor=%2d ave-err=%7.1f\n",
                     fileName,
                     fileUnit.offset, fileUnit.size, fileUnit.size / 1024,
                     fileUnit.table,
+                    fileUnit.predictor,
                     sqrtf((float)e12[index - MemImage::NUM_DIR]));
 
                 totalSize += fileUnit.size;
@@ -168,11 +170,11 @@ bool MemImageUtil::Test()
     const uint8_t data5[5] = { 0, 1, 2, 3, 4 };
 
     miu.addDir("dir0");
-    miu.addFile("file0", data4, 4, 1, 1);
+    miu.addFile("file0", data4, 4, 1, 4, 1);
     
     miu.addDir("dir1abcd");
-    miu.addFile("file1", data4, 4, 2, 2);
-    miu.addFile("file2", data5, 5, 3, 3);
+    miu.addFile("file1", data4, 4, 2, 3, 2);
+    miu.addFile("file2", data5, 5, 3, 2, 3);
 
     miu.addDir("config");
     for (int i = 0; i < 8; ++i) {
@@ -199,6 +201,7 @@ bool MemImageUtil::Test()
         TEST(muFile0.nameMatch("file0"));
         TEST(muFile0.size == 4);
         TEST(muFile0.table == 1);
+        TEST(muFile0.predictor == 4);
         const uint8_t* data = miu.dataVec + muFile0.offset;
         for (int i = 0; i < 4; ++i)
             TEST(data[i] == i);
@@ -210,6 +213,7 @@ bool MemImageUtil::Test()
         TEST(muFile2.nameMatch("file2"));
         TEST(muFile2.size == 5);
         TEST(muFile2.table == 3);
+        TEST(muFile2.predictor == 2);
         const uint8_t* data = miu.dataVec + muFile2.offset;
         for (int i = 0; i < 5; ++i)
             TEST(data[i] == i);
