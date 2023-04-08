@@ -32,8 +32,8 @@ private:
     static const int MEMORY_SIZE = 2'000'000;   // 2 million or...bigger? 2 * 1024 * 1024??
     int numDir = 0;
     int numFile = 0;
-    int addr = MemImage::SIZE;      // points to the beginning of th eheap.
-    int32_t e12[MemImage::NUM];
+    int addr = MemImage::SIZE_BASE;      // points to the beginning of the heap.
+    int32_t e12[MemImage::NUM_MEMUNITS];
     MemImage* image = 0;            // alias to dataVac
     uint8_t* dataVec;               // The entire 2mb image. The MemImage is at the beginning.
 };
