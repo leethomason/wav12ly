@@ -23,9 +23,11 @@
 #pragma once
 
 #include <stdint.h>
+#include <cstddef>
 
 struct MemUnit {
-    static const int NAME_LEN = 8;
+    static constexpr int NAME_LEN = 8;
+    static constexpr int NAME_ALLOC = NAME_LEN + 1; // not used here, but amount to allocate if you need to null-terminate
 
     char name[NAME_LEN];   // NOT null terminated, but 0-filled.
     uint32_t offset;

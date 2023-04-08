@@ -14,8 +14,9 @@ public:
 
     void addDir(const char* name);
     void addFile(const char* name, const void* data, int size, int table, int predictor, int32_t e12);
-    void addConfig(uint8_t font, uint8_t bc_r, uint8_t bc_g, uint8_t bc_b, uint8_t ic_r, uint8_t ic_g, int8_t ic_b);
-    void dumpConsole();
+    void writePalette(int index, const MemPalette& palette);
+    void writeDesc(const char* desc);
+     void dumpConsole();
     int getNumFiles() const {
         return numFile;
     }

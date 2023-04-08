@@ -93,9 +93,9 @@ public:
         static constexpr int32_t PREDICTOR = 2;
         static constexpr int32_t N_PREDICTOR = 5; // [0, 4]
          
-        State(const int* _table, int32_t _predictor) : table(_table), predictor(_predictor) {}
+        State(const int32_t* _table, int32_t _predictor) : predictor(_predictor), table(_table) {}
 
-        void init(const int* _table, int32_t _predictor) {
+        void init(const int32_t* _table, int32_t _predictor) {
             table = _table;
             predictor = _predictor;
         }
@@ -138,7 +138,7 @@ public:
             W12ASSERT(table);
 
             int delta = abs(index - ZERO_INDEX); // 0 - 8
-            shift = fastClamp(shift + table[delta], 0, SHIFT_LIMIT_4);
+            shift = fastClamp(shift + table[delta], int32_t(0), SHIFT_LIMIT_4);
         }
     };
 
@@ -155,8 +155,8 @@ public:
     }
 
 private:
-    static const int SHIFT_LIMIT_4 = 14;
-    static const int VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
+    static const int32_t SHIFT_LIMIT_4 = 14;
+    static const int32_t VOLUME_EASING = 32;    // 8, 16, 32, 64? initial test on powerOn sound seemed 32 was good.
 
     inline static int32_t sat_mult(int32_t a, int32_t b)
     {

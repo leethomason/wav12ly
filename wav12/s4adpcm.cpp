@@ -42,7 +42,7 @@ const int32_t S4ADPCM::DELTA_TABLE_4[N_TABLES][TABLE_SIZE] = {
 };
 
 // -8 + 7
-const int S4ADPCM::STEP[16] = {
+const int32_t S4ADPCM::STEP[16] = {
 #if 0
     // This is the previous algorithm.
     // Still *slightly* more accurate, since the best
