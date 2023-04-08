@@ -29,26 +29,23 @@
 
 using namespace wav12;
 
-//uint8_t ExpanderAD4::m_buffer[BUFFER_SIZE] = {0};
-
-void ExpanderAD4::init(::IStream* stream, int _table, int _predictor)
+void ExpanderAD4::init(::IStream* stream, const int32_t* table, int32_t predictor)
 {
     W12ASSERT(stream);
+    W12ASSERT(table);
     m_stream = stream;
-    m_table = _table;
-    m_predictor = _predictor;
+    m_state.init(table, predictor);
     rewind();
 }
 
 void ExpanderAD4::rewind()
 {
-    m_state = S4ADPCM::State();
-    m_state.predictor = m_predictor;
+    m_state = S4ADPCM::State(m_state.table, m_state.predictor);
     m_stream->rewind();
 }
 
 
-int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, const int* table, bool overrideEasing)
+int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool add, bool overrideEasing)
 {
     if (!m_stream)
         return 0;
@@ -72,7 +69,7 @@ int ExpanderAD4::expand(int32_t *target, uint32_t nSamples, int32_t volume, bool
         if (!bytesFetched)
             break;
 
-        S4ADPCM::decode4(m_buffer, samplesFetched, volume, add, target + intptr_t(n) * 2, &m_state, table);
+        S4ADPCM::decode4(m_buffer, samplesFetched, volume, add, target + intptr_t(n) * 2, &m_state);
         n += samplesFetched;
     }
     return n;
@@ -101,20 +98,19 @@ void ExpanderAD4::generateTestData(int nSamples, int16_t* data)
 }
 
 
-void ExpanderAD4::fillBuffer(int32_t* buffer, int nBufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int *volume, bool disableEasing, const int* altTable)
+void ExpanderAD4::fillBuffer(int32_t* buffer, int nBufferSamples, ExpanderAD4* expanders, int nExpanders, const bool* loop, const int *volume, bool disableEasing)
 {
     if (!buffer) return;
     if (nBufferSamples <= 0) return;
 
     for (int i = 0; i < nExpanders; ++i) {
         ExpanderAD4* expander = expanders + i;
-        const int* table = altTable ? altTable : S4ADPCM::getTable(expander->table());
 
         int n = 0;
         do {
             // 32 bit stereo buffer
             // annoying and inefficent, but that's what is working.
-            n += expander->expand(buffer + n * 2, nBufferSamples - n, volume[i], i > 0, table, disableEasing);
+            n += expander->expand(buffer + n * 2, nBufferSamples - n, volume[i], i > 0, disableEasing);
             if (loop[i] && expander->done())
                 expander->rewind();
         } while (n < nBufferSamples && loop[i]);

@@ -109,8 +109,8 @@ void optimizeTable(const int16_t* samples, int nSamples)
         if (table[8] < 1)
             continue;
 
-        S4ADPCM::State state;
-        S4ADPCM::encode4(samples, nSamples, compressed, &state, table);
+        S4ADPCM::State state(table, S4ADPCM::State::PREDICTOR);
+        S4ADPCM::encode4(samples, nSamples, compressed, &state);
 
         MemStream memStream0(compressed, nCompressed);
         memStream0.set(0, nCompressed);
@@ -119,7 +119,7 @@ void optimizeTable(const int16_t* samples, int nSamples)
         const int volume = 256;
         bool loop = false;
 
-        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &loop, &volume, true, table);
+        ExpanderAD4::fillBuffer(stereo, nSamples, &expander, 1, &loop, &volume, true);
 
         int64_t error2 = 0;
         for (int i = 0; i < nSamples; ++i) {
@@ -220,18 +220,18 @@ EncodedStream compressS4(const int16_t* samples, int nSamples, int table, int32_
     int nCompressed = nSamples / 2;
 
     const int* pTable = S4ADPCM::getTable(table);
-    S4ADPCM::State state;
+    S4ADPCM::State state(pTable, predictor);
     state.predictor = predictor;
     auto compressed = std::make_unique<uint8_t[]>(nCompressed);
 
-    S4ADPCM::encode4(samples, nSamples, compressed.get(), &state, pTable);
+    S4ADPCM::encode4(samples, nSamples, compressed.get(), &state);
 
     auto stereo = std::make_unique<int32_t[]>(nSamples * 2);
 
     MemStream memStream0(compressed.get(), nCompressed);
     memStream0.set(0, nCompressed);
     ExpanderAD4 expander;
-    expander.init(&memStream0, table, predictor);
+    expander.init(&memStream0, pTable, predictor);
     const int volume = 256;
     bool loop = false;
 
@@ -281,8 +281,8 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
                 uint32_t nCompressed = nSamplesIn / 2;
                 uint8_t* compressed = new uint8_t[nSamplesIn];
                 int64_t error = 0;
-                S4ADPCM::State state;
-                S4ADPCM::encode4(samplesIn, nSamplesIn, compressed, &state, S4ADPCM::getTable(0));
+                S4ADPCM::State state(S4ADPCM::getTable(0), S4ADPCM::State::PREDICTOR);
+                S4ADPCM::encode4(samplesIn, nSamplesIn, compressed, &state);
 
                 // Decompress
                 MemStream memStream0(compressed, nCompressed);
@@ -290,8 +290,8 @@ void runTest(const int16_t* samplesIn, int nSamplesIn, int tolerance)
                 memStream0.set(0, nCompressed);
                 memStream1.set(0, nCompressed);
                 ExpanderAD4 expander[2];
-                expander[0].init(&memStream0, 0, S4ADPCM::State::PREDICTOR);
-                expander[1].init(&memStream1, 0, S4ADPCM::State::PREDICTOR);
+                expander[0].init(&memStream0, S4ADPCM::getTable(0), S4ADPCM::State::PREDICTOR);
+                expander[1].init(&memStream1, S4ADPCM::getTable(0), S4ADPCM::State::PREDICTOR);
 
                 bool loopArr[2] = { loop > 0, loop > 0 };
                 int volume[2] = { 256, 256 };
@@ -643,27 +643,15 @@ int parseXML(const std::vector<std::string>& files, const std::string& inputPath
                         int r = rotateZero(data, nSamples);
                         printf("%s rotated %d samples.\n", fname, r);
                     }
+                    EncodedStream es = compressGroup(data, nSamples);
+                    totalError += int64_t(es.aveError2) * int64_t(nSamples);
+                    simpleError += int64_t(es.aveError2);
 
-                    int bestTable = 0;
-                    int32_t bestE = INT32_MAX;
-
-                    for (int i = 0; i < S4ADPCM::N_TABLES; ++i) {
-                        EncodedStream es = compressS4(data, nSamples, i, S4ADPCM::State::PREDICTOR);
-
-                        if (es.aveError2 < bestE) {
-                            bestE = es.aveError2;
-                            bestTable = i;
-                        }
-                    }
-                    totalError += int64_t(bestE) * int64_t(nSamples);
-                    simpleError += int64_t(bestE);
-
-                    EncodedStream es = compressS4(data, nSamples, bestTable, S4ADPCM::State::PREDICTOR);
                     if (post) {
                         std::string f = postPath + fname;
                         saveOut(f.c_str(), es.stereo.get(), nSamples);
                     }
-                    image.addFile(stdfname.c_str(), es.compressed.get(), es.nCompressed, bestTable, es.aveError2);
+                    image.addFile(stdfname.c_str(), es.compressed.get(), es.nCompressed, es.table, es.predictor, es.aveError2);
 
                     delete[] data;
                     wave_reader_close(wr);
