@@ -174,10 +174,8 @@ EncodedStream compressGroup(const int16_t* samples, int nSamples)
     int32_t errADPCM = 0;
     compressAndCalcErrorADPCM(samples, nSamples, &errADPCM);
 
-//    for (int table = 0; table < S4ADPCM::N_TABLES; table++) {
-//        for (int pre = 0; pre < S4ADPCM::State::N_PREDICTOR; pre++) {
-    for (int table = 0; table < 1; table++) {
-        for (int pre = 0; pre < 2; pre++) {
+    for (int table = 0; table < S4ADPCM::N_TABLES; table++) {
+        for (int pre = 0; pre < S4ADPCM::State::N_PREDICTOR; pre++) {
             int i = table * S4ADPCM::State::N_PREDICTOR + pre;
 #if USE_MT()
             esArr[i].samples = samples;
@@ -196,7 +194,7 @@ EncodedStream compressGroup(const int16_t* samples, int nSamples)
 
     int32_t bestErr = std::numeric_limits<int32_t>::max();
     int best = 0;
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < N; ++i) {
 #if USE_MT()
         const EncodedStream& es = esArr[i].es;
 #else

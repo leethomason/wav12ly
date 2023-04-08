@@ -44,7 +44,11 @@ void MemImageUtil::addFile(const char* name, const void* data, int size, int tab
     image->unit[numDir-1].size += 1;
     int index = MemImage::NUM_DIR + numFile;
     strncpy(image->unit[index].name, name, MemUnit::NAME_LEN);
-    assert(addr < MEMORY_SIZE);
+    assert(addr + size <= MEMORY_SIZE);
+    if (addr + size > MEMORY_SIZE) {
+        printf("Too much memory used.\n");
+        exit(1);
+    }
     image->unit[index].offset = addr;
     image->unit[index].size = size;
     image->unit[index].table = table;
