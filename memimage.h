@@ -16,7 +16,7 @@ public:
     void addFile(const char* name, const void* data, int size, int table, int predictor, int32_t e12);
     void writePalette(int index, const MemPalette& palette);
     void writeDesc(const char* desc);
-     void dumpConsole();
+    void dumpConsole();
     int getNumFiles() const {
         return numFile;
     }
@@ -30,7 +30,7 @@ public:
     static bool Test();
 
 private:
-    static const int MEMORY_SIZE = 2'000'000;   // 2 million or...bigger? 2 * 1024 * 1024??
+    static const int MEMORY_SIZE = 2 * 1024 * 1024;
     int numDir = 0;
     int numFile = 0;
     int addr = MemImage::SIZE_BASE;      // points to the beginning of the heap.

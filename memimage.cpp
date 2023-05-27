@@ -47,6 +47,8 @@ void MemImageUtil::addFile(const char* name, const void* data, int size, int tab
     assert(addr + size <= MEMORY_SIZE);
     if (addr + size > MEMORY_SIZE) {
         printf("Too much memory used.\n");
+        printf("Adding file: %s\n", name);
+        printf("addr=%d size=%d of %d\n", addr, size, MEMORY_SIZE);
         exit(1);
     }
     image->unit[index].offset = addr;
